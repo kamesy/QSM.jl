@@ -1,0 +1,10 @@
+Manifest.toml
+docs/build/
+dev/
+
+*.swp
+*.swo
+
+*.mat
+*.nii
+*.nii.gz
