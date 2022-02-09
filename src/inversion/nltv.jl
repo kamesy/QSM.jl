@@ -44,8 +44,8 @@ Nonlinear total variation deconvolution using ADMM [1].
 - `mu::Real = 1`: Lagrange multiplier penalty parameter (unused if `W = nothing`)
 - `tol::Real = 1e-3`: stopping tolerance
 - `maxit::Integer = 250`: maximum number of iterations
-- `toln::Real = 1e-3`: stopping tolerance for Newton method
-- `maxitn::Integer = 250`: maximum number of iterations for Newton method
+- `toln::Real = 1e-6`: stopping tolerance for Newton method
+- `maxitn::Integer = 10`: maximum number of iterations for Newton method
 - `verbose::Bool = false`: print convergence information
 
 ### Returns
@@ -69,7 +69,7 @@ function nltv(
     rho::Real = 100*lambda,
     mu::Real = 1,
     tol::Real = 1e-3,
-    maxit::Integer = 100,
+    maxit::Integer = 250,
     toln::Real = 1e-6,
     maxitn::Integer = 10,
     verbose::Bool = false,
@@ -272,10 +272,10 @@ function _nltv!(
                 threadlocal[1] = muladd(a-b, a-b, threadlocal[1])
                 threadlocal[2] = muladd(a, a, threadlocal[2])
             end
-            ndx, nx = sum(threadlocal::Vector{Vector{T}})
+            ndx, nx = sqrt.(sum(threadlocal::Vector{Vector{T}}))
 
             if verbose
-                @printf("%3d/%d\t    %.4e\n", i, maxit, sqrt(ndx/nx))
+                @printf("%3d/%d\t    %.4e\n", i, maxit, ndx/nx)
             end
 
             if ndx < ϵ*nx || i == maxit
