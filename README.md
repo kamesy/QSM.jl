@@ -11,7 +11,7 @@ Julia toolbox for quantitative susceptibility mapping (QSM).
 QSM.jl requires Julia v1.6 or later.
 
 ```julia
-julia> ]add https://github.com/kamesy/QSM.jl
+julia> ]add QSM
 ```
 
 ## Example
