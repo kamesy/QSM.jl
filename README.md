@@ -1,6 +1,6 @@
 # QSM.jl
 
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://kamesy.github.io/QSM.jl/stable)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://kamesy.github.io/QSM.jl)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://kamesy.github.io/QSM.jl/dev)
 [![Build Status](https://github.com/kamesy/QSM.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/kamesy/QSM.jl/actions/workflows/CI.yml?query=branch%3Amain)
 
@@ -52,7 +52,7 @@ fl, mask2 = vsharp(uphas, mask1, vsz)
 x = rts(fl, mask2, vsz, bdir=bdir)
 ```
 
-See the [`documentation`](https://kamesy.github.io/QSM.jl/stable) for more details.
+See the [`documentation`](https://kamesy.github.io/QSM.jl) for more details.
 
 ## Multi-Threading
 Multi-threading is provided by [`Polyester.jl`](https://github.com/JuliaSIMD/Polyester.jl). To enable threading, [`start Julia with multiple threads`](https://docs.julialang.org/en/v1.6/manual/multi-threading/#Starting-Julia-with-multiple-threads):
