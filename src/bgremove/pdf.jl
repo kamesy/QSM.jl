@@ -11,7 +11,7 @@
         tol::Real = 1e-5,
         maxit::Integer = ceil(sqrt(numel(mask))),
         verbose::Bool = false
-    ) typeof(similar(f))
+    ) -> typeof(similar(f))
 
 Projection onto dipole fields (PDF) [1].
 

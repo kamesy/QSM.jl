@@ -1,6 +1,6 @@
 # QSM.jl
 
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://kamesy.github.io/QSM.jl/stable)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://kamesy.github.io/QSM.jl)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://kamesy.github.io/QSM.jl/dev)
 [![Build Status](https://github.com/kamesy/QSM.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/kamesy/QSM.jl/actions/workflows/CI.yml?query=branch%3Amain)
 
@@ -42,9 +42,7 @@ uphas = unwrap_laplacian(phas, mask1, vsz)
 
 # convert units
 for t in axes(uphas, 4)
-    for R in CartesianIndices(axes(uphas)[1:3])
-        uphas[R,t] *= inv(B0 * γ * TEs[t])
-    end
+    uphas[:,:,:,t] .*= inv(B0 * γ * TEs[t])
 end
 
 # remove non-harmonic background fields

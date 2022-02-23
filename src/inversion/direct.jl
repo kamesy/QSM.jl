@@ -19,7 +19,8 @@ Truncated k-space division (TKD) [1].
 
 ### Keywords
 - `pad::NTuple{3, Integer} = (0, 0, 0)`: zero padding array
-    (-1 no padding, >= 0 mininum padding to fast fft size)
+    - `< 0`: no padding
+    - `≥ 0`: minimum padding to fast fft size
 - `bdir::NTuple{3, Real} = (0, 0, 1)`: unit vector of B field direction
 - `Dkernel::Symbol = :k`: dipole kernel method
 - `thr::Real = 0.15`: threshold for k-space filter
@@ -68,7 +69,8 @@ Truncated singular value decomposition (TSVD) [1].
 
 ### Keywords
 - `pad::NTuple{3, Integer} = (0, 0, 0)`: zero padding array
-    (-1 no padding, >= 0 mininum padding to fast fft size)
+    - `< 0`: no padding
+    - `≥ 0`: minimum padding to fast fft size
 - `bdir::NTuple{3, Real} = (0, 0, 1)`: unit vector of B field direction
 - `Dkernel::Symbol = :k`: dipole kernel method
 - `thr::Real = 0.15`: threshold for k-space filter
@@ -121,7 +123,8 @@ Tikhonov regularization [1].
 
 ### Keywords
 - `pad::NTuple{3, Integer} = (0, 0, 0)`: zero padding array
-    (-1 no padding, >= 0 mininum padding to fast fft size)
+    - `< 0`: no padding
+    - `≥ 0`: minimum padding to fast fft size
 - `bdir::NTuple{3, Real} = (0, 0, 1)`: unit vector of B field direction
 - `Dkernel::Symbol = :k`: dipole kernel method
 - `lambda::Real = 1e-2`: regularization parameter

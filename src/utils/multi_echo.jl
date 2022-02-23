@@ -1,10 +1,14 @@
+#####
+##### Linear
+#####
+
 """
     fit_echo_linear(
         phas::AbstractArray{<:AbstractFloat, 4},
         W::AbstractArray{<:AbstractFloat, 4},
         TEs::NTuple{N, Real};
         phase_offset::Bool = true
-    ) -> NTuple{1 or 2, typeof(similar(phas)){3}}
+    ) -> Tuple{typeof(similar(phas)){3}, [typeof(similar(phas)){3}]}
 
 Weighted least squares for multi-echo data.
 
