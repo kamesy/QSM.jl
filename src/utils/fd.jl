@@ -141,8 +141,7 @@ function gradfp_adj(
     dz::AbstractArray{Tdz, 3},
     h::NTuple{3, Real}
 ) where {Tdx, Tdy, Tdz}
-    Td2u = foldl(promote_type, (Tdy, Tdz), init=Tdx)
-    d2u = similar(dx, Td2u)
+    d2u = similar(dx, promote_type(Tdx, Tdy, Tdz))
     gradfp_adj!(d2u, dx, dy, dz, h)
 end
 

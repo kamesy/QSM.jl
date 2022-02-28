@@ -70,7 +70,7 @@ function fit_echo_linear!(
     size(p) == (nx, ny, nz) || throw(DimensionMismatch())
     size(W) == size(phas)   || throw(DimensionMismatch())
 
-    T = foldl(promote_type, (Tphas, TW), init=Tp)
+    T = promote_type(Tp, Tphas, TW)
     tes = convert.(T, TEs)
 
     _zeroT = zero(T)
@@ -130,7 +130,7 @@ function fit_echo_linear!(
     size(p0) == (nx, ny, nz) || throw(DimensionMismatch())
     size(W)  == size(phas)   || throw(DimensionMismatch())
 
-    T = foldl(promote_type, (Tp0, Tphas, TW), init=Tp)
+    T = promote_type(Tp, Tp0, Tphas, TW)
     tes = convert.(T, TEs)
 
     _zeroT = zero(T)
