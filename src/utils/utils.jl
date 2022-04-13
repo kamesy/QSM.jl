@@ -4,6 +4,7 @@ include("kernels.jl")
 include("lsmr.jl")
 include("multi_echo.jl")
 include("poisson_solver/poisson_solver.jl")
+include("r2star.jl")
 
 
 #####
@@ -343,7 +344,7 @@ erode_mask(mask::AbstractArray{Bool, 3}, iter::Integer = 1) =
     erode_mask!(tzero(mask), mask, iter)
 
 """
-    erode_mask(
+    erode_mask!(
         emask::AbstractArray{Bool, 3},
         mask::AbstractArray{Bool, 3},
         iter::Integer = 1

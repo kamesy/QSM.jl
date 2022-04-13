@@ -8,7 +8,7 @@ using NIfTI: NIVolume, niread, niwrite
 using Polyester: @batch, num_cores
 using PolyesterWeave: reset_workers!
 using Printf: @printf
-using SLEEFPirates: sincos_fast
+using SLEEFPirates: pow, sincos_fast
 using StaticArrays: SVector
 using ThreadingUtilities: initialize_task
 using TiledIteration: EdgeIterator, TileIterator, padded_tilesize
@@ -21,6 +21,7 @@ export bet
 export gradfp, gradfp!, gradfp_adj, gradfp_adj!, lap, lap!
 export dipole_kernel, laplace_kernel, smv_kernel
 export fit_echo_linear, fit_echo_linear!
+export r2star_arlo, r2star_crsi, r2star_ll, r2star_numart2s
 export crop_mask, crop_indices, erode_mask, erode_mask!
 export fastfftsize, padfastfft, padarray!, unpadarray, unpadarray!, psf2otf
 include("utils/utils.jl")

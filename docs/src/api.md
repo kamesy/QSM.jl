@@ -59,6 +59,14 @@ fit_echo_linear!
 ```
 
 ## Other
+### R2* mapping
+```@docs
+r2star_arlo
+r2star_crsi
+r2star_ll
+r2star_numart2s
+```
+
 ### Finite differences
 ```@docs
 gradfp
