@@ -41,7 +41,7 @@ mask1 = erode_mask(mask0, 5)
 uphas = unwrap_laplacian(phas, mask1, vsz)
 
 # convert units
-for t in axes(uphas, 4)
+@views for t in axes(uphas, 4)
     uphas[:,:,:,t] .*= inv(B0 * γ * TEs[t])
 end
 
