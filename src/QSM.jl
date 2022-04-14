@@ -1,7 +1,7 @@
 module QSM
 
 
-using Base.Threads: @threads, nthreads
+using Base.Threads: nthreads
 using FastPow: @fastpow
 using LinearMaps: LinearMap
 using NIfTI: NIVolume, niread, niwrite
