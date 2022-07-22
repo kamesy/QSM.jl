@@ -198,7 +198,7 @@ function _kdiv!(
     D = Array{T, 3}(undef, sz_)
     F̂ = Array{complex(T), 3}(undef, sz_)
 
-    FFTW.set_num_threads(num_cores())
+    FFTW.set_num_threads(FFTW_NTHREADS[])
     P = plan_rfft(fp)
     iP = inv(P)
 

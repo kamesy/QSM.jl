@@ -458,7 +458,7 @@ function psf2otf(
     kp = circshift!(tzero(_kp), _kp, .-szk.÷2)
 
     # fft
-    FFTW.set_num_threads(num_cores())
+    FFTW.set_num_threads(FFTW_NTHREADS[])
     P = T <: Real && rfft ? plan_rfft(kp) : plan_fft(kp)
 
     K = P*kp

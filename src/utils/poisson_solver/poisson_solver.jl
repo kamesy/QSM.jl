@@ -81,7 +81,7 @@ function solve_poisson_dct(
     dx::NTuple{3, Real}
 ) where {N}
     N ∈ (3, 4) || throw(ArgumentError("arrays must be 3d or 4d, got $(N)d"))
-    return solve_poisson_dct!(tcopy(d2u), dx)
+    return solve_poisson_dct!(similar(d2u), d2u, dx)
 end
 
 function solve_poisson_dct!(
@@ -91,34 +91,26 @@ function solve_poisson_dct!(
 ) where {N}
     N ∈ (3, 4) || throw(ArgumentError("arrays must be 3d or 4d, got $(N)d"))
     size(u) == size(d2u) || throw(DimensionMismatch())
-    return solve_poisson_dct!(_tcopyto!(u, d2u), dx)
-end
-
-function solve_poisson_dct!(
-    d2u::AbstractArray{<:AbstractFloat, N},
-    dx::NTuple{3, Real}
-) where {N}
-    N ∈ (3, 4) || throw(ArgumentError("arrays must be 3d or 4d, got $(N)d"))
 
     nx, ny, nz = size(d2u)[1:3]
     idx2 = inv(dx[1].*dx[1])
     idy2 = inv(dx[2].*dx[2])
     idz2 = inv(dx[3].*dx[3])
 
-    u = d2u
-
-    FFTW.set_num_threads(num_cores())
-    P = plan_dct!(u, 1:3)
+    # extreme slowdown for certain sizes with lots of threads
+    # even worse for in-place, ie dct!
+    FFTW.set_num_threads(max(1, FFTW_NTHREADS[]÷2))
+    P = plan_dct(u, 1:3)
     iP = inv(P)
 
-    u = P*u
+    d2û = P*d2u
 
     X = [2*(cospi(i)-1)*idx2 for i in range(0, step=1/nx, length=nx)]
     Y = [2*(cospi(j)-1)*idy2 for j in range(0, step=1/ny, length=ny)]
     Z = [2*(cospi(k)-1)*idz2 for k in range(0, step=1/nz, length=nz)]
 
-    @inbounds for t in axes(u, 4)
-        d2ût = @view(u[:,:,:,t])
+    @inbounds for t in axes(d2û, 4)
+        d2ût = @view(d2û[:,:,:,t])
         @batch for k in 1:nz
             for j in 1:ny
                 for i in 1:nx
@@ -131,7 +123,9 @@ function solve_poisson_dct!(
     end
 
     # inverse dct
-    return iP*u
+    u = mul!(u, iP, d2û)
+
+    return u
 end
 
 
@@ -157,7 +151,7 @@ function solve_poisson_fft!(
     idz2 = inv(dx[3].*dx[3])
 
     _rfft = iseven(nx)
-    FFTW.set_num_threads(num_cores())
+    FFTW.set_num_threads(FFTW_NTHREADS[])
 
     # FFTW's rfft is extremely slow with some odd lengths in the first dim
     if _rfft

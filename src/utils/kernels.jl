@@ -80,7 +80,7 @@ function dipole_kernel(
             return _dipole_kernel!(d, dsz, vsz, bdir, :i; shift=shift)
 
         elseif transform == :fft
-            FFTW.set_num_threads(num_cores())
+            FFTW.set_num_threads(FFTW_NTHREADS[])
             D = Array{T, 3}(undef, sz)
             D̂ = Array{complex(T), 3}(undef, sz)
             P = plan_fft!(D̂)
@@ -89,7 +89,7 @@ function dipole_kernel(
             return shift ? fftshift(D) : D
 
         elseif transform == :rfft
-            FFTW.set_num_threads(num_cores())
+            FFTW.set_num_threads(FFTW_NTHREADS[])
             D = Array{T, 3}(undef, (sz[1]>>1 + 1, sz[2], sz[3]))
             D̂ = Array{complex(T), 3}(undef, (sz[1]>>1 + 1, sz[2], sz[3]))
             d = Array{T, 3}(undef, sz)
@@ -289,7 +289,7 @@ function smv_kernel(
         return _smv_kernel!(s, vsz, r, shift=shift)
 
     elseif transform == :fft
-        FFTW.set_num_threads(num_cores())
+        FFTW.set_num_threads(FFTW_NTHREADS[])
         S = Array{T, 3}(undef, sz)
         Ŝ = Array{complex(T), 3}(undef, sz)
         P = plan_fft!(Ŝ)
@@ -298,7 +298,7 @@ function smv_kernel(
         return shift ? fftshift(S) : S
 
     elseif transform == :rfft
-        FFTW.set_num_threads(num_cores())
+        FFTW.set_num_threads(FFTW_NTHREADS[])
         S = Array{T, 3}(undef, (sz[1]>>1 + 1, sz[2], sz[3]))
         Ŝ = Array{complex(T), 3}(undef, (sz[1]>>1 + 1, sz[2], sz[3]))
         s = Array{T, 3}(undef, sz)
@@ -465,7 +465,7 @@ function laplace_kernel(
         return _laplace_kernel!(Δ, vsz, negative=negative, shift=shift)
 
     elseif transform == :fft
-        FFTW.set_num_threads(num_cores())
+        FFTW.set_num_threads(FFTW_NTHREADS[])
         L = Array{T, 3}(undef, sz)
         L̂ = Array{complex(T), 3}(undef, sz)
         P = plan_fft!(L̂)
@@ -474,7 +474,7 @@ function laplace_kernel(
         return shift ? fftshift(L) : L
 
     elseif transform == :rfft
-        FFTW.set_num_threads(num_cores())
+        FFTW.set_num_threads(FFTW_NTHREADS[])
         L = Array{T, 3}(undef, (sz[1]>>1 + 1, sz[2], sz[3]))
         L̂ = Array{complex(T), 3}(undef, (sz[1]>>1 + 1, sz[2], sz[3]))
         Δ = Array{T, 3}(undef, sz)

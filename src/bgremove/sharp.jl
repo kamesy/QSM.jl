@@ -72,7 +72,7 @@ function _sharp!(
     S = Array{T}(undef, sz_)
     F̂ = Array{complex(T)}(undef, sz_)
 
-    FFTW.set_num_threads(num_cores())
+    FFTW.set_num_threads(FFTW_NTHREADS[])
     P = plan_rfft(fp)
     iP = inv(P)
 
@@ -212,7 +212,7 @@ function _sharp!(
 
     m = tfill!(m, 0)
 
-    FFTW.set_num_threads(num_cores())
+    FFTW.set_num_threads(FFTW_NTHREADS[])
     P = plan_rfft(s)
     iP = inv(P)
 
@@ -321,7 +321,7 @@ function _sharp!(
 
     m = tfill!(m, 0)
 
-    FFTW.set_num_threads(num_cores())
+    FFTW.set_num_threads(FFTW_NTHREADS[])
     P = plan_rfft(s)
     iP = inv(P)
 

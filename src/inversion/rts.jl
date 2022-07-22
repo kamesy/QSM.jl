@@ -124,7 +124,7 @@ function _rts!(
     M  = Array{T}(undef, sz_)   # abs(D) > δ
     iA = Array{T}(undef, sz_)   # 1 / (mu*M - rho*Δ)
 
-    FFTW.set_num_threads(num_cores())
+    FFTW.set_num_threads(FFTW_NTHREADS[])
     P = plan_rfft(xp)
     iP = inv(P)
 

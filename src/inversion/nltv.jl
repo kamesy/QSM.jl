@@ -154,7 +154,7 @@ function _nltv!(
     X̂ = Array{complex(T)}(undef, sz_)   # in-place rfft var
     F̂ = Array{complex(T)}(undef, sz_)   # pre-computed rhs
 
-    FFTW.set_num_threads(num_cores())
+    FFTW.set_num_threads(FFTW_NTHREADS[])
     P = plan_rfft(xp)
     iP = inv(P)
 
