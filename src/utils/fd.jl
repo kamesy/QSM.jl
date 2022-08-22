@@ -46,9 +46,9 @@ First order forward difference gradient with periodic boundaries.
 - `dz`: z-component of gradient of `u`
 """
 function gradfp!(dx, dy, dz, u, h)
-    size(dx) == size(u) || throw(DimensionMismatch())
-    size(dy) == size(u) || throw(DimensionMismatch())
-    size(dz) == size(u) || throw(DimensionMismatch())
+    checkshape(dx, u, (:dx, :u))
+    checkshape(dy, u, (:dy, :u))
+    checkshape(dz, u, (:dz, :u))
     return _gradfp!(dx, dy, dz, u, h)
 end
 
@@ -167,9 +167,9 @@ Adjoint of first order forward difference gradient with periodic boundaries.
 - `u`: divergence of [dx, dy, dz]
 """
 function gradfp_adj!(d2u, dx, dy, dz, h)
-    size(d2u) == size(dx) || throw(DimensionMismatch())
-    size(d2u) == size(dy) || throw(DimensionMismatch())
-    size(d2u) == size(dz) || throw(DimensionMismatch())
+    checkshape(d2u, dx, (:d2u, :dx))
+    checkshape(d2u, dy, (:d2u, :dy))
+    checkshape(d2u, dz, (:d2u, :dz))
     return _gradfp_adj!(d2u, dx, dy, dz, h)
 end
 
@@ -313,7 +313,7 @@ Second order central difference Laplacian.
 - `d2u`: discrete Laplacian of `u`
 """
 function lap!(d2u, u, h)
-    size(d2u) == size(u) || throw(DimensionMismatch())
+    checkshape(d2u, u, (:d2u, :u))
     return _lap!(d2u, u, h)
 end
 

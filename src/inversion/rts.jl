@@ -89,8 +89,8 @@ function _rts!(
 ) where {T, N}
     N ∈ (3, 4) || throw(ArgumentError("arrays must be 3d or 4d, got $(N)d"))
 
-    size(x) == size(f) || throw(DimensionMismatch())
-    size(mask) == size(f)[1:3] || throw(DimensionMismatch())
+    checkshape(x, f, (:x, :f))
+    checkshape(axes(mask), axes(f)[1:3])
 
     Dkernel ∈ (:k, :kspace, :i, :ispace) ||
         throw(ArgumentError("Dkernel must be one of :k, :kspace, :i, :ispace, got :$(Dkernel)"))

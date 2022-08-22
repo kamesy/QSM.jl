@@ -80,8 +80,9 @@ function _lbv!(
     verbose::Bool,
 ) where {T<:AbstractFloat, N}
     N ∈ (3, 4) || throw(ArgumentError("arrays must be 3d or 4d, got $(N)d"))
-    size(fl) == size(f) || throw(DimensionMismatch())
-    size(mask) == size(f)[1:3] || throw(DimensionMismatch())
+
+    checkshape(fl, f, (:fl, :f))
+    checkshape(axes(mask), axes(f)[1:3], (:mask, :f))
 
     # crop to avoid unnecessary work. fl[!mask] = 0
     sz = size(mask)

@@ -52,8 +52,8 @@ function mgpcg!(
 ) where {T<:AbstractFloat, N}
     N ∈ (3, 4) || throw(ArgumentError("arrays must be 3d or 4d, got $(N)d"))
 
-    size(x) == size(b) || throw(DimensionMismatch())
-    size(A) == size(b)[1:3] || throw(DimensionMismatch())
+    checkshape(x, b, (:x, :b))
+    checkshape(size(A), size(b)[1:3], (:A, :b))
 
     M = Multigrid(T, A,
         coarsesolver = coarsesolver,

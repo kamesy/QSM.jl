@@ -71,8 +71,8 @@ function fit_echo_linear!(
     NT > 1 || throw(ArgumentError("data must be multi-echo"))
 
     size(phas, M) == NT || throw(DimensionMismatch())
-    size(W) == size(phas) || throw(DimensionMismatch())
     length(p) == length(phas) ÷ NT || throw(DimensionMismatch())
+    checkshape(W, phas, (:W, :phas))
 
     vphas = reshape(phas, :, NT)
     vW = reshape(W, :, NT)
@@ -131,9 +131,9 @@ function fit_echo_linear!(
     NT > 1 || throw(ArgumentError("data must be multi-echo"))
 
     size(phas, M) == NT || throw(DimensionMismatch())
-    size(W) == size(phas) || throw(DimensionMismatch())
     length(p) == length(phas) ÷ NT || throw(DimensionMismatch())
     length(p0) == length(phas) ÷ NT || throw(DimensionMismatch())
+    checkshape(W, phas, (:W, :phas))
 
     vphas = reshape(phas, :, NT)
     vW = reshape(W, :, NT)

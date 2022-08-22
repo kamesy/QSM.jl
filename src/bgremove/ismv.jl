@@ -57,9 +57,9 @@ function _ismv!(
 ) where {T<:AbstractFloat, N}
     N ∈ (3, 4) || throw(ArgumentError("arrays must be 3d or 4d, got $(N)d"))
 
-    size(fl) == size(f)        || throw(DimensionMismatch())
-    size(smask) == size(mask)  || throw(DimensionMismatch())
-    size(mask) == size(f)[1:3] || throw(DimensionMismatch())
+    checkshape(fl, f, (:fl, :f))
+    checkshape(smask, mask, (:smask, :mask))
+    checkshape(axes(mask), axes(f)[1:3], (:mask, :f))
 
     # crop image and pad for convolution
     Rc = crop_indices(mask)

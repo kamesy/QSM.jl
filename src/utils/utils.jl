@@ -365,7 +365,7 @@ function erode_mask!(
     m0::AbstractArray{Bool, 3},
     iter::Integer = 1
 )
-    size(m1) == size(m0) || throw(DimensionMismatch())
+    checkshape(m1, m0, (:emask, :mask))
 
     if iter < 1
         return _tcopyto!(m1, m0)
@@ -509,4 +509,64 @@ function _tcopyto!(f::Function, y, x)
         y[I] = f(x[I])
     end
     return y
+end
+
+
+#####
+##### Error checking
+#####
+
+function checkshape(
+    ::Type{Bool},
+    a::NTuple{Na, Integer},
+    b::NTuple{Nb, Integer},
+) where {Na, Nb}
+    Na < Nb && return checkshape(Bool, b, a)
+    return all(i -> a[i] == b[i], 1:Nb) && all(i -> a[i] == 1, Nb+1:Na)
+end
+
+function checkshape(
+    a::NTuple{Na, Integer},
+    b::NTuple{Nb, Integer},
+    vars::NTuple{2, Union{Symbol, AbstractString}} = (:a, :b),
+) where {Na, Nb}
+    if !checkshape(Bool, a, b)
+        na, nb = vars
+        throw(DimensionMismatch("shape must match: $na has dims $a, $nb has dims $b"))
+    end
+    return nothing
+end
+
+
+function checkshape(::Type{Bool}, a::AbstractArray, b::AbstractArray)
+    checkshape(Bool, axes(a), axes(b))
+end
+
+function checkshape(
+    a::AbstractArray,
+    b::AbstractArray,
+    vars::NTuple{2, Union{Symbol, AbstractString}} = (:a, :b)
+)
+    checkshape(axes(a), axes(b), vars)
+end
+
+function checkshape(
+    ::Type{Bool},
+    a::NTuple{Na, AbstractUnitRange},
+    b::NTuple{Nb, AbstractUnitRange},
+) where {Na, Nb}
+    Na < Nb && return checkshape(Bool, b, a)
+    return all(i -> a[i] == b[i], 1:Nb) && all(i -> a[i] == 1:1, Nb+1:Na)
+end
+
+function checkshape(
+    a::NTuple{Na, AbstractUnitRange},
+    b::NTuple{Nb, AbstractUnitRange},
+    vars::NTuple{2, Union{Symbol, AbstractString}} = (:a, :b),
+) where {Na, Nb}
+    if !checkshape(Bool, a, b)
+        na, nb = vars
+        throw(DimensionMismatch("shape must match: $na has dims $a, $nb has dims $b"))
+    end
+    return nothing
 end

@@ -102,20 +102,23 @@ function _nltv!(
 ) where {T, N}
     N ∈ (3, 4) || throw(ArgumentError("arrays must be 3d or 4d, got $(N)d"))
 
-    size(x) == size(f) || throw(DimensionMismatch())
-    size(mask) == size(f)[1:3] || throw(DimensionMismatch())
+    checkshape(x, f, (:x, :f))
+    checkshape(axes(mask), axes(f)[1:3], (:mask, :f))
 
     if W !== nothing
-        ndims(W) ∈ (3, 4) || throw(ArgumentError("arrays must be 3d or 4d, got $(M)d"))
-        size(W)[1:3] == size(f)[1:3] || throw(DimensionMismatch())
-        ndims(W) == 3 || size(W, 4) == size(f, 4) || throw(DimensionMismatch())
+        checkshape(Bool, axes(W), axes(f)[1:3]) ||
+        checkshape(W, f, (:W, :f))
     end
 
     if Wtv !== nothing
-        ndims(Wtv) ∈ (3, 4, 5) || throw(ArgumentError("array Wtv must be 3d, 4d, or 5d, got $(M)d"))
-        size(Wtv)[1:3] == size(f)[1:3] || throw(DimensionMismatch())
-        ndims(Wtv) == 3 || size(Wtv, 4) ∈ (1, size(f, 4)) || throw(DimensionMismatch())
-        ndims(Wtv) ∈ (3, 4) || size(Wtv, 5) == 3 || throw(DimensionMismatch())
+        if ndims(Wtv) < 5
+            checkshape(Bool, axes(Wtv), axes(f)[1:3]) ||
+            checkshape(Wtv, f, (:Wtv, :f))
+        else
+            checkshape(Bool, axes(Wtv), (axes(f)[1:3]..., 1:1, 1:3)) ||
+            checkshape(Bool, axes(Wtv), (axes(f)[1:3]..., axes(f, 4), 1:3)) ||
+            checkshape(Wtv, f, (:Wtv, :f))
+        end
     end
 
     Dkernel ∈ (:k, :kspace, :i, :ispace) ||

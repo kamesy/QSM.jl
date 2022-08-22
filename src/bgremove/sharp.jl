@@ -53,9 +53,9 @@ function _sharp!(
 ) where {T<:AbstractFloat, N}
     N ∈ (3, 4) || throw(ArgumentError("arrays must be 3d or 4d, got $(N)d"))
 
-    size(fl) == size(f)        || throw(DimensionMismatch())
-    size(smask) == size(mask)  || throw(DimensionMismatch())
-    size(mask) == size(f)[1:3] || throw(DimensionMismatch())
+    checkshape(fl, f, (:fl, :f))
+    checkshape(smask, mask, (:smask, :mask))
+    checkshape(axes(mask), axes(f)[1:3], (:mask, :f))
 
     # crop image and pad for convolution
     Rc = crop_indices(mask)
@@ -189,10 +189,10 @@ function _sharp!(
     r::AbstractVector{<:Real},
     thr::Real,
 ) where {T<:AbstractFloat}
-    size(fl) == size(f)       || throw(DimensionMismatch())
-    size(smask) == size(mask) || throw(DimensionMismatch())
-    size(mask) == size(f)     || throw(DimensionMismatch())
-    length(r) > 0             || throw(ArgumentError("r must not be empty"))
+    checkshape(fl, f, (:fl, :f))
+    checkshape(smask, mask, (:smask, :mask))
+    checkshape(mask, f, (:mask, :f))
+    !isempty(r) || throw(ArgumentError("r must not be empty"))
 
     rs = sort!(unique(collect(r)), rev=true)
 
@@ -298,10 +298,10 @@ function _sharp!(
     r::AbstractVector{<:Real},
     thr::Real,
 ) where {T<:AbstractFloat}
-    size(fl) == size(f)        || throw(DimensionMismatch())
-    size(smask) == size(mask)  || throw(DimensionMismatch())
-    size(mask) == size(f)[1:3] || throw(DimensionMismatch())
-    length(r) > 0              || throw(ArgumentError("r must not be empty"))
+    checkshape(fl, f, (:fl, :f))
+    checkshape(smask, mask, (:smask, :mask))
+    checkshape(axes(mask), axes(f)[1:3], (:mask, :f))
+    length(r) > 0 || throw(ArgumentError("r must not be empty"))
 
     rs = sort!(unique(collect(r)), rev=true)
 

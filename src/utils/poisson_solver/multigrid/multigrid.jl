@@ -85,8 +85,8 @@ function solve!(
     log::Bool = false,
     verbose::Bool = false,
 ) where {T<:AbstractFloat, N}
-    size(x) == size(b) || throw(DimensionMismatch())
-    size(x) == size(M.grids[1].A) || throw(DimensionMismatch())
+    checkshape(x, b, (:x, :b))
+    checkshape(size(x), size(M.grids[1].A), (:x, :A))
 
     M.workspace.x[1] = x
     M.workspace.b[1] = b

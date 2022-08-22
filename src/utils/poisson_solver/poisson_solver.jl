@@ -24,8 +24,8 @@ function solve_poisson_mgpcg!(
     kwargs...
 ) where {T, N}
     N ∈ (3, 4) || throw(ArgumentError("arrays must be 3d or 4d, got $(N)d"))
-    size(u) == size(d2u) || throw(DimensionMismatch())
-    size(mask) == size(u)[1:3] || throw(DimensionMismatch())
+    checkshape(u, d2u, (:u, :d2u))
+    checkshape(axes(mask), axes(u)[1:3], (:mask, :u))
 
     # crop to avoid unnecessary work. u[!mask] = 0
     sz = size(mask)
@@ -90,7 +90,7 @@ function solve_poisson_dct!(
     dx::NTuple{3, Real}
 ) where {N}
     N ∈ (3, 4) || throw(ArgumentError("arrays must be 3d or 4d, got $(N)d"))
-    size(u) == size(d2u) || throw(DimensionMismatch())
+    checkshape(u, d2u, (:u, :d2u))
 
     nx, ny, nz = size(d2u)[1:3]
     idx2 = inv(dx[1].*dx[1])
@@ -143,7 +143,7 @@ function solve_poisson_fft!(
     dx::NTuple{3, Real}
 ) where {N}
     N ∈ (3, 4) || throw(ArgumentError("arrays must be 3d or 4d, got $(N)d"))
-    size(u) == size(d2u) || throw(DimensionMismatch())
+    checkshape(u, d2u, (:u, :d2u))
 
     nx, ny, nz = size(d2u)[1:3]
     idx2 = inv(dx[1].*dx[1])
