@@ -48,7 +48,7 @@ function unwrap_laplacian(
     solver::Symbol = :mgpcg
 ) where {T<:AbstractFloat, N}
     N ∈ (3, 4) || throw(ArgumentError("arrays must be 3d or 4d, got $(N)d"))
-    size(mask) == size(phas)[1:3] || throw(DimensionMismatch())
+    checkshape(axes(mask), axes(phas)[1:3], (:mask, :phas))
 
     solver ∈ (:dct, :fft, :mgpcg) ||
         throw(ArgumentError("solver must be one of :dct, :fft, :mgpcg"))
@@ -64,11 +64,11 @@ function unwrap_laplacian(
         uphas = solve_poisson_fft(d2uphas, vsz)
 
     elseif solver == :mgpcg
-        # stc/utils/poisson_solver/mgpcg.jl
+        # src/utils/poisson_solver/mgpcg.jl
         nlevels = __DEFAULT_MGPCG_DEPTH(mask)
 
         opts = (
-            # stc/bgremove/lbv.jl
+            # src/bgremove/lbv.jl
             presmoother  = __DEFAULT_LBV_PRE(nlevels),
             coarsesolver = __DEFAULT_LBV_COARSE(),
             postsmoother = __DEFAULT_LBV_POST(nlevels),
@@ -105,14 +105,10 @@ function wrapped_laplacian!(
     u::AbstractArray{T, 3},
     dx::NTuple{3, Real}
 ) where {T<:AbstractFloat}
-    size(d2u) == size(u) || throw(DimensionMismatch())
-
-    τ = convert(T, 2π)
+    checkshape(d2u, u, (:d2u, :u))
 
     nx, ny, nz = size(u)
-    dx2 = convert(T, inv(dx[1]*dx[1]))
-    dy2 = convert(T, inv(dx[2]*dx[2]))
-    dz2 = convert(T, inv(dx[3]*dx[3]))
+    dx2, dy2, dz2 = convert.(T, inv.(dx.*dx))
 
     tsz = padded_tilesize(T, (2, 2, 2), 1)
     R = vec(collect(TileIterator((2:nx-1, 2:ny-1, 2:nz-1), tsz)))
@@ -121,30 +117,12 @@ function wrapped_laplacian!(
         for k in K
             for j in J
                 for i in I
-                    du = u[i,j,k] - u[i,j,k-1]
-                    du = __wrap(du) ? rem(du, τ, RoundNearest) : du
-                    Δ = -dz2*du
-
-                    du = u[i,j,k] - u[i,j-1,k]
-                    du = __wrap(du) ? rem(du, τ, RoundNearest) : du
-                    Δ = muladd(-dy2, du, Δ)
-
-                    du = u[i,j,k] - u[i-1,j,k]
-                    du = __wrap(du) ? rem(du, τ, RoundNearest) : du
-                    Δ = muladd(-dx2, du, Δ)
-
-                    du = u[i+1,j,k] - u[i,j,k]
-                    du = __wrap(du) ? rem(du, τ, RoundNearest) : du
-                    Δ = muladd(dx2, du, Δ)
-
-                    du = u[i,j+1,k] - u[i,j,k]
-                    du = __wrap(du) ? rem(du, τ, RoundNearest) : du
-                    Δ = muladd(dy2, du, Δ)
-
-                    du = u[i,j,k+1] - u[i,j,k]
-                    du = __wrap(du) ? rem(du, τ, RoundNearest) : du
-                    Δ = muladd(dz2, du, Δ)
-
+                    Δ =        -dz2 *_wrap(u[i,j,k] - u[i,j,k-1])
+                    Δ = muladd(-dy2, _wrap(u[i,j,k] - u[i,j-1,k]), Δ)
+                    Δ = muladd(-dx2, _wrap(u[i,j,k] - u[i-1,j,k]), Δ)
+                    Δ = muladd( dx2, _wrap(u[i+1,j,k] - u[i,j,k]), Δ)
+                    Δ = muladd( dy2, _wrap(u[i,j+1,k] - u[i,j,k]), Δ)
+                    Δ = muladd( dz2, _wrap(u[i,j,k+1] - u[i,j,k]), Δ)
                     d2u[i,j,k] = Δ
                 end
             end
@@ -159,14 +137,10 @@ function wrapped_laplacian!(
     u::AbstractArray{T, 4},
     dx::NTuple{3, Real}
 ) where {T<:AbstractFloat}
-    size(d2u) == size(u) || throw(DimensionMismatch())
-
-    τ = convert(T, 2π)
+    checkshape(d2u, u, (:d2u, :u))
 
     nx, ny, nz, _ = size(u)
-    dx2 = convert(T, inv(dx[1]*dx[1]))
-    dy2 = convert(T, inv(dx[2]*dx[2]))
-    dz2 = convert(T, inv(dx[3]*dx[3]))
+    dx2, dy2, dz2 = convert.(T, inv.(dx.*dx))
 
     tsz = padded_tilesize(T, (2, 2, 2), 1)
     R = vec(collect(TileIterator((2:nx-1, 2:ny-1, 2:nz-1), tsz)))
@@ -178,30 +152,12 @@ function wrapped_laplacian!(
             for k in K
                 for j in J
                     for i in I
-                        du = _u[i,j,k] - _u[i,j,k-1]
-                        du = __wrap(du) ? rem(du, τ, RoundNearest) : du
-                        Δ = -dz2*du
-
-                        du = _u[i,j,k] - _u[i,j-1,k]
-                        du = __wrap(du) ? rem(du, τ, RoundNearest) : du
-                        Δ = muladd(-dy2, du, Δ)
-
-                        du = _u[i,j,k] - _u[i-1,j,k]
-                        du = __wrap(du) ? rem(du, τ, RoundNearest) : du
-                        Δ = muladd(-dx2, du, Δ)
-
-                        du = _u[i+1,j,k] - _u[i,j,k]
-                        du = __wrap(du) ? rem(du, τ, RoundNearest) : du
-                        Δ = muladd(dx2, du, Δ)
-
-                        du = _u[i,j+1,k] - _u[i,j,k]
-                        du = __wrap(du) ? rem(du, τ, RoundNearest) : du
-                        Δ = muladd(dy2, du, Δ)
-
-                        du = _u[i,j,k+1] - _u[i,j,k]
-                        du = __wrap(du) ? rem(du, τ, RoundNearest) : du
-                        Δ = muladd(dz2, du, Δ)
-
+                        Δ =        -dz2 *_wrap(_u[i,j,k] - _u[i,j,k-1])
+                        Δ = muladd(-dy2, _wrap(_u[i,j,k] - _u[i,j-1,k]), Δ)
+                        Δ = muladd(-dx2, _wrap(_u[i,j,k] - _u[i-1,j,k]), Δ)
+                        Δ = muladd( dx2, _wrap(_u[i+1,j,k] - _u[i,j,k]), Δ)
+                        Δ = muladd( dy2, _wrap(_u[i,j+1,k] - _u[i,j,k]), Δ)
+                        Δ = muladd( dz2, _wrap(_u[i,j,k+1] - _u[i,j,k]), Δ)
                         _d2u[i,j,k] = Δ
                     end
                 end
@@ -211,9 +167,6 @@ function wrapped_laplacian!(
 
     return d2u
 end
-
-
-@inline __wrap(x::T) where {T} = x < T(-π) || x > T(π)
 
 
 #####
@@ -227,16 +180,11 @@ function wrapped_laplacian_boundary_neumann!(
     dx::NTuple{3, Real}
 ) where {T<:AbstractFloat, N}
     N ∈ (3, 4) || throw(ArgumentError("arrays must be 3d or 4d, got $(N)d"))
-    size(d2u) == size(u) || throw(DimensionMismatch())
-
-    τ = convert(T, 2π)
+    checkshape(d2u, u, (:d2u, :u))
 
     sz = size(u)
     nx, ny, nz = sz[1:3]
-
-    dx2 = convert(T, inv(dx[1]*dx[1]))
-    dy2 = convert(T, inv(dx[2]*dx[2]))
-    dz2 = convert(T, inv(dx[3]*dx[3]))
+    dx2, dy2, dz2 = convert.(T, inv.(dx.*dx))
 
     _zero = zero(T)
 
@@ -256,39 +204,27 @@ function wrapped_laplacian_boundary_neumann!(
             Δ = _zero
 
             if k > 1
-                du = _u[i,j,k] - _u[i,j,k-1]
-                du = __wrap(du) ? rem(du, τ, RoundNearest) : du
-                Δ = muladd(-dz2, du, Δ)
+                Δ = muladd(-dz2, _wrap(_u[i,j,k] - _u[i,j,k-1]), Δ)
             end
 
             if j > 1
-                du = _u[i,j,k] - _u[i,j-1,k]
-                du = __wrap(du) ? rem(du, τ, RoundNearest) : du
-                Δ = muladd(-dy2, du, Δ)
+                Δ = muladd(-dy2, _wrap(_u[i,j,k] - _u[i,j-1,k]), Δ)
             end
 
             if i > 1
-                du = _u[i,j,k] - _u[i-1,j,k]
-                du = __wrap(du) ? rem(du, τ, RoundNearest) : du
-                Δ = muladd(-dx2, du, Δ)
+                Δ = muladd(-dx2, _wrap(_u[i,j,k] - _u[i-1,j,k]), Δ)
             end
 
             if i < nx
-                du = _u[i+1,j,k] - _u[i,j,k]
-                du = __wrap(du) ? rem(du, τ, RoundNearest) : du
-                Δ = muladd(dx2, du, Δ)
+                Δ = muladd( dx2, _wrap(_u[i+1,j,k] - _u[i,j,k]), Δ)
             end
 
             if j < ny
-                du = _u[i,j+1,k] - _u[i,j,k]
-                du = __wrap(du) ? rem(du, τ, RoundNearest) : du
-                Δ = muladd(dy2, du, Δ)
+                Δ = muladd( dy2, _wrap(_u[i,j+1,k] - _u[i,j,k]), Δ)
             end
 
             if k < nz
-                du = _u[i,j,k+1] - _u[i,j,k]
-                du = __wrap(du) ? rem(du, τ, RoundNearest) : du
-                Δ = muladd(dz2, du, Δ)
+                Δ = muladd( dz2, _wrap(_u[i,j,k+1] - _u[i,j,k]), Δ)
             end
 
             _d2u[i,j,k] = Δ
@@ -305,16 +241,11 @@ function wrapped_laplacian_boundary_periodic!(
     dx::NTuple{3, Real}
 ) where {T<:AbstractFloat, N}
     N ∈ (3, 4) || throw(ArgumentError("arrays must be 3d or 4d, got $(N)d"))
-    size(d2u) == size(u) || throw(DimensionMismatch())
-
-    τ = convert(T, 2π)
+    checkshape(d2u, u, (:d2u, :u))
 
     sz = size(u)
     nx, ny, nz = sz[1:3]
-
-    dx2 = convert(T, inv(dx[1]*dx[1]))
-    dy2 = convert(T, inv(dx[2]*dx[2]))
-    dz2 = convert(T, inv(dx[3]*dx[3]))
+    dx2, dy2, dz2 = convert.(T, inv.(dx.*dx))
 
     outer = CartesianIndices(ntuple(n -> 1:sz[n], Val(3)))
     inner = CartesianIndices(ntuple(n -> 2:sz[n]-1, Val(3)))
@@ -330,28 +261,22 @@ function wrapped_laplacian_boundary_periodic!(
         _d2u = @view(d2u[:,:,:,t])
         @batch per=thread for (i, j, k) in R
             du = k == 1 ? _u[i,j,k] - _u[i,j,end] : _u[i,j,k] - _u[i,j,k-1]
-            du = __wrap(du) ? rem(du, τ, RoundNearest) : du
-            Δ = -dz2 * du
+            Δ = -dz2 * _wrap(du)
 
             du = j == 1 ? _u[i,j,k] - _u[i,end,k] : _u[i,j,k] - _u[i,j-1,k]
-            du = __wrap(du) ? rem(du, τ, RoundNearest) : du
-            Δ = muladd(-dy2, du, Δ)
+            Δ = muladd(-dy2, _wrap(du), Δ)
 
             du = i == 1 ? _u[i,j,k] - _u[end,j,k] : _u[i,j,k] - _u[i-1,j,k]
-            du = __wrap(du) ? rem(du, τ, RoundNearest) : du
-            Δ = muladd(-dx2, du, Δ)
+            Δ = muladd(-dx2, _wrap(du), Δ)
 
             du = i == nx ? _u[1,j,k] - _u[i,j,k] : _u[i+1,j,k] - _u[i,j,k]
-            du = __wrap(du) ? rem(du, τ, RoundNearest) : du
-            Δ = muladd(dx2, du, Δ)
+            Δ = muladd(dx2, _wrap(du), Δ)
 
             du = j == ny ? _u[i,1,k] - _u[i,j,k] : _u[i,j+1,k] - _u[i,j,k]
-            du = __wrap(du) ? rem(du, τ, RoundNearest) : du
-            Δ = muladd(dy2, du, Δ)
+            Δ = muladd(dy2, _wrap(du), Δ)
 
             du = k == nz ? _u[i,j,1] - _u[i,j,k] : _u[i,j,k+1] - _u[i,j,k]
-            du = __wrap(du) ? rem(du, τ, RoundNearest) : du
-            Δ = muladd(dz2, du, Δ)
+            Δ = muladd(dz2, _wrap(du), Δ)
 
             _d2u[i,j,k] = Δ
         end
