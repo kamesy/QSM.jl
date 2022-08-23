@@ -1,7 +1,9 @@
 module QSM
 
 
+using Base: @propagate_inbounds
 using Base.Threads: nthreads
+
 using CPUSummary: num_cores
 using FastPow: @fastpow
 using IrrationalConstants: inv2π, twoπ

@@ -80,7 +80,7 @@ end
         x::AbstractArray{T, N},
         ksz::NTuple{M, Integer} = ntuple(_ -> 0, Val(N));
         pad::Symbol = :fill,
-        val::Number = zero(T),
+        val = zero(T),
         rfft::Bool = false,
     ) -> typeof(similar(x, szp))
 
@@ -99,7 +99,7 @@ keeping the array centered at `n÷2+1`.
     - `:replicate`
     - `:symmetric`
     - `:reflect`
-- `val::Number = 0`: pads array with `val` if `pad = :fill`
+- `val = 0`: pads array with `val` if `pad = :fill`
 - `rfft::Bool = false`: force first dimension to be even (`true`)
 
 ### Returns
@@ -109,7 +109,7 @@ function padfastfft(
     x::AbstractArray{T, N},
     ksz::NTuple{M, Integer} = ntuple(_ -> 0, Val(N));
     pad::Symbol = :fill,
-    val::Number = zero(T),
+    val = zero(T),
     rfft::Bool = false,
 ) where {N, M, T}
     sz = size(x)
@@ -123,7 +123,7 @@ end
         xp::AbstractArray{Txp, N},
         x::AbstractArray{Tx, N},
         pad::Symbol = :fill,
-        val::Number = 0
+        val = 0
     ) -> xp
 
 Pad array keeping it centered at `n÷2+1`.
@@ -137,7 +137,7 @@ Pad array keeping it centered at `n÷2+1`.
     - `:replicate`
     - `:symmetric`
     - `:reflect`
-- `val::Number = 0`: pads array with `val` if `pad = :fill`
+- `val = 0`: pads array with `val` if `pad = :fill`
 
 ### Returns
 - `xp`: padded array
@@ -146,80 +146,79 @@ function padarray!(
     xp::AbstractArray{Txp, N},
     x::AbstractArray{Tx, N},
     pad::Symbol = :fill,
-    val::Number = zero(Txp)
+    val = zero(Txp)
 ) where {N, Txp, Tx}
     sz = size(x)
     szp = size(xp)
     all(szp .>= sz) || throw(DimensionMismatch())
 
-    pad ∈ (:fill, :circular, :replicate, :symmetric, :reflect) ||
-        throw(ArgumentError(
-            "pad must be one of :fill, :circular, :replicate, :symmetric, :reflect"
-        ))
-
-    ΔI = CartesianIndex((szp .- sz .+ 1) .>> 1)
-
-    outer = CartesianIndices(axes(xp))
-    inner = CartesianIndices(ntuple(n -> ΔI[n]+1:ΔI[n]+size(x, n), Val(N)))
-    R = EdgeIterator(outer, inner)
-
-    if pad == :fill
-        valT = convert(Txp, val)
-        @inbounds for I in R
-            xp[I] = valT
-        end
-
-    elseif pad == :circular
-        @inbounds for I in R
-            Ix = I + ΔI
-            xp[I] = x[ntuple(n -> mod(Ix[n], size(x, n))+1, Val(N))...]
-        end
-
-    elseif pad == :replicate
-        @inbounds for I in R
-            Ix = I - ΔI
-            xp[I] = x[ntuple(n -> clamp(Ix[n], 1, size(x, n)), Val(N))...]
-        end
-
-    elseif pad == :symmetric
-        @inbounds for I in R
-            Ix = I - ΔI
-            xp[I] = x[
-                ntuple(Val(N)) do n
-                    if Ix[n] < 1
-                        1 - Ix[n]
-                    elseif Ix[n] > size(x, n)
-                        2*size(x, n) + 1 - Ix[n]
-                    else
-                        Ix[n]
-                    end
-                end...
-            ]
-        end
-
-    elseif pad == :reflect
-        @inbounds for I in R
-            Ix = I - ΔI
-            xp[I] = x[
-                ntuple(Val(N)) do n
-                    if Ix[n] < 1
-                        2 - Ix[n]
-                    elseif Ix[n] > size(x, n)
-                        2*size(x, n) - Ix[n]
-                    else
-                        Ix[n]
-                    end
-                end...
-            ]
-        end
+    if szp == sz
+        return _tcopyto!(xp, x)
     end
 
-    # interior
-    @inbounds @batch minbatch=1024 for I in CartesianIndices(x)
-        xp[I+ΔI] = x[I]
+    valT = convert(Txp, val)
+    getindex_pad =
+        pad == :fill      ? (_...) -> valT :
+        pad == :circular  ? getindex_circular :
+        pad == :replicate ? getindex_replicate :
+        pad == :symmetric ? getindex_symmetric :
+        pad == :reflect   ? getindex_reflect :
+        throw(ArgumentError(
+            "pad must be one of " *
+            ":fill, "      *
+            ":circular, "  *
+            ":replicate, " *
+            ":symmetric, " *
+            ":reflect, "   *
+            "got :$(pad)"
+        ))
+
+    return _padarray_kernel!(xp, x, getindex_pad)
+end
+
+function _padarray_kernel!(xp::AbstractArray, x::AbstractArray, getindex_pad)
+    ax = axes(x)
+    lo = map(first, ax)
+    hi = map(last, ax)
+    ΔI = CartesianIndex((size(xp) .- size(x) .+ 1) .>> 1)
+
+    # TODO: disable threading for small xp
+    @inbounds @batch for Ip in CartesianIndices(xp)
+        I = Ip - ΔI
+        if any(map(∉, I.I, ax))
+            xp[Ip] = getindex_pad(x, I, lo, hi)
+        else
+            xp[Ip] = x[I]
+        end
     end
 
     return xp
+end
+
+@propagate_inbounds function getindex_circular(x, I, lo, hi)
+    x[CartesianIndex(map(I.I, lo, hi) do i, l, h
+        mod(i - l, h) + l
+    end)]
+end
+
+@propagate_inbounds function getindex_replicate(x, I, lo, hi)
+    x[CartesianIndex(map(I.I, lo, hi) do i, l, h
+        clamp(i, l, h)
+    end)]
+end
+
+@propagate_inbounds function getindex_symmetric(x, I, lo, hi)
+    x[CartesianIndex(map(I.I, lo, hi) do i, l, h
+        i < l ? 2*l - 1 - i :
+        i > h ? 2*h + 1 - i : i
+    end)]
+end
+
+@propagate_inbounds function getindex_reflect(x, I, lo, hi)
+    x[CartesianIndex(map(I.I, lo, hi) do i, l, h
+        i < l ? 2*l - i :
+        i > h ? 2*h - i : i
+    end)]
 end
 
 
@@ -235,6 +234,7 @@ function unpadarray(
     xp::AbstractArray{T, N},
     sz::NTuple{N, Integer}
 ) where {T, N}
+    all(sz .<= size(xp)) || throw(DimensionMismatch())
     return unpadarray!(similar(xp, sz), xp)
 end
 
@@ -256,11 +256,7 @@ function unpadarray!(
     all(sz .<= szp) || throw(DimensionMismatch())
 
     ΔI = CartesianIndex((szp .- sz .+ 1) .>> 1)
-    @inbounds @batch minbatch=1024 for I in CartesianIndices(x)
-        x[I] = xp[I+ΔI]
-    end
-
-    return x
+    return copyto!(x, CartesianIndices(x), xp, CartesianIndices(x) .+ ΔI)
 end
 
 
