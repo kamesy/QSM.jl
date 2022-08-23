@@ -272,7 +272,7 @@ end
     crop_mask(
         x::AbstractArray,
         m::AbstractArray = x;
-        out::Number = 0
+        out = 0
     ) -> typeof(x[...])
 
 Crop array to mask.
@@ -282,49 +282,72 @@ Crop array to mask.
 - `m::AbstractArray`: mask
 
 ### Keywords
-- `out::Number = 0`: value in `m` considered outside
+- `out = 0`: value in `m` considered outside
 
 ### Returns
 - `typeof(x[...])`: cropped array
 """
-function crop_mask(
-    x::AbstractArray,
-    m::AbstractArray = x;
-    out::Number = 0
-)
-    size(x) == size(m) || throw(DimensionMismatch())
-    return x[crop_indices(m, out)]
+function crop_mask(x::AbstractArray, m::AbstractArray{T} = x; out = zero(T)) where {T}
+    checkshape(x, m, (:x, :m))
+    Rc = crop_indices(m, out)
+    xc = _tcopyto!(similar(x, size(Rc)), @view(x[Rc]))
+    return xc
 end
 
 """
-    crop_indices(x::AbstractArray, out::Number = 0) -> CartesianIndices
+    crop_indices(x::AbstractArray, out = 0) -> CartesianIndices
 
 Indices to crop mask.
 
 ### Arguments
 - `x::AbstractArray`: mask
-- `out::Number = 0`: value in `x` considered outside
+- `out = 0`: value in `x` considered outside
 
 ### Returns
 - `CartesianIndices`: indices to crop mask
 """
-function crop_indices(x::AbstractArray{T, N}, out::Number = zero(T)) where {T, N}
-    i1 = [last.(axes(x))...]
-    i2 = [first.(axes(x))...]
+function crop_indices(x::AbstractArray{T, N}, out = zero(T)) where {T, N}
+    outT = convert(T, out)
 
-    v = convert(T, out)
-    cmp = T <: Integer ? (!=) : (≉)
-
-    @inbounds for I in CartesianIndices(x)
-        if cmp(x[I], v)
-            for n in Base.OneTo(N)
-                i1[n] = ifelse(I[n] < i1[n], I[n], i1[n])
-                i2[n] = ifelse(I[n] > i2[n], I[n], i2[n])
-            end
-        end
+    cmp, pred = if T <: Bool
+        identity, outT ? (!) : identity
+    elseif T <: Integer
+        !=(outT), identity
+    else
+        !≈(outT), identity
     end
 
-    return CartesianIndices(ntuple(n -> i1[n]:i2[n], Val(N)))
+    return CartesianIndices(ntuple(Val(N)) do d
+        Rd = mapreduce(cmp, |, x, dims = [i for i in 1:N if i != d])
+        R = Array(vec(Rd))
+        findfirst(pred, R):findlast(pred, R)
+    end)
+end
+
+# specialize for 3d arrays. ~30% faster
+function crop_indices(x::Array{T, 3}, out = zero(T)) where {T}
+    outT = convert(T, out)
+
+    cmp, pred = if T <: Bool
+        identity, outT ? (!) : identity
+    elseif T <: Integer
+        !=(outT), identity
+    else
+        !≈(outT), identity
+    end
+
+    R1 = mapreduce(cmp, |, x, dims=1, init=false)
+    R2 = mapreduce(cmp, |, x, dims=2, init=false)
+
+    Rx = mapreduce(identity, |, R2, dims=3, init=false) |> vec
+    Ry = mapreduce(identity, |, R1, dims=3, init=false) |> vec
+    Rz = mapreduce(identity, |, R1, dims=2, init=false) |> vec
+
+    return CartesianIndices((
+        findfirst(pred, Rx):findlast(pred, Rx),
+        findfirst(pred, Ry):findlast(pred, Ry),
+        findfirst(pred, Rz):findlast(pred, Rz),
+    ))
 end
 
 
