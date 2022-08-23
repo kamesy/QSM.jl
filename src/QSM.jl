@@ -4,6 +4,7 @@ module QSM
 using Base.Threads: nthreads
 using CPUSummary: num_cores
 using FastPow: @fastpow
+using IrrationalConstants: inv2π, twoπ
 using LinearMaps: LinearMap
 using NIfTI: NIVolume, niread, niwrite
 using Polyester: @batch
