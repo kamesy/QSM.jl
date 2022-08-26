@@ -666,6 +666,19 @@ end
 ##### Error checking
 #####
 
+checkshape(
+    ::Type{Bool},
+    ::Tuple{},
+    ::Tuple{}
+) = true
+
+checkshape(
+    ::Tuple{},
+    ::Tuple{},
+    ::NTuple{2, Union{Symbol, AbstractString}} = (:a, :b)
+) = nothing
+
+
 function checkshape(
     ::Type{Bool},
     a::NTuple{Na, Integer},
