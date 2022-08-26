@@ -261,13 +261,10 @@ function boundary_mask!(
 
     b = tzero(mb)
 
-    # array boundary
-    outer = CartesianIndices(ntuple(n -> 2:sz[n]-1, Val(3)))
-    inner = CartesianIndices(ntuple(n -> 3:sz[n]-2-Int(iseven(sz[n])), Val(3)))
-    if !isempty(inner)
-        @inbounds for I in EdgeIterator(outer, inner)
-            b[I] = m[I]
-        end
+    outer = ntuple(n -> 2:sz[n]-1, Val(3))
+    inner = ntuple(n -> 3:sz[n]-2-Int(iseven(sz[n])), Val(3))
+    _edgeloop(outer, inner) do i, j, k
+        @inbounds b[i,j,k] = m[i,j,k]
     end
 
     # interior

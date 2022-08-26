@@ -183,12 +183,12 @@ function _padarray_kernel!(xp::AbstractArray, x::AbstractArray, getindex_pad)
     ΔI = CartesianIndex((size(xp) .- size(x) .+ 1) .>> 1)
 
     # TODO: disable threading for small xp
-    @inbounds @batch for Ip in CartesianIndices(xp)
+    @batch for Ip in CartesianIndices(xp)
         I = Ip - ΔI
         if any(map(∉, I.I, ax))
-            xp[Ip] = getindex_pad(x, I, lo, hi)
+            @inbounds xp[Ip] = getindex_pad(x, I, lo, hi)
         else
-            xp[Ip] = x[I]
+            @inbounds xp[Ip] = x[I]
         end
     end
 
@@ -396,10 +396,10 @@ function erode_mask!(
 
     nx, ny, nz = size(m0)
     for t in 1:iter
-        @inbounds @batch for k in 1+t:nz-t
+        @batch for k in 1+t:nz-t
             for j in 1+t:ny-t
                 for i in 1+t:nx-t
-                    m1[i,j,k] = __erode_kernel(m0, i, j, k)
+                    @inbounds m1[i,j,k] = __erode_kernel(m0, i, j, k)
                 end
             end
         end
@@ -468,8 +468,8 @@ function psf2otf(
         _kp = k
     else
         _kp = tfill!(similar(k, sz), zero(T))
-        @inbounds @batch minbatch=1024 for I in CartesianIndices(k)
-            _kp[I] = k[I]
+        @batch minbatch=1024 for I in CartesianIndices(k)
+            @inbounds _kp[I] = k[I]
         end
     end
 
@@ -489,6 +489,128 @@ function psf2otf(
     end
 
     return K
+end
+
+
+function edge_indices(
+    x::AbstractArray{T, N},
+    mask::Union{Nothing, AbstractArray{Bool, N}} = nothing
+) where {T, N}
+    edge_indices(axes(x), mask)
+end
+
+function edge_indices(
+    outer::NTuple{N, AbstractUnitRange{Int}},
+    mask::Union{Nothing, AbstractArray{Bool, N}} = nothing
+) where {N}
+    frst = map(first, outer)
+    lst = map(last, outer)
+    stp = map(step, outer)
+    inner = ntuple(d -> frst[d]+stp[d]:lst[d]-stp[d], Val(N))
+    edge_indices(outer, inner, mask)
+end
+
+function edge_indices(
+    outer::NTuple{N, AbstractUnitRange{Int}},
+    inner::NTuple{N, AbstractUnitRange{Int}},
+    mask::Union{Nothing, AbstractArray{Bool, N}} = nothing
+) where {N}
+    all(first.(inner) .∈ outer) && all(last.(inner) .∈ outer) ||
+        throw(DimensionMismatch("inner$inner must be in the interior of outer$outer"))
+
+    mask !== nothing && checkshape(outer, axes(mask), (:outer, :mask))
+
+    if mask === nothing
+        n = prod(map(length, outer)) - prod(map(length, inner))
+
+    else
+        m = Ref(0)
+        _edgeloop(outer, inner) do I...
+            if (@inbounds mask[I...])
+                m[] += 1
+            end
+        end
+        n = m[]
+    end
+
+    if iszero(n)
+        return Vector{NTuple{N, Int}}()
+    end
+
+    E = Vector{NTuple{N, Int}}(undef, n)
+    i = Ref(0)
+    _edgeloop(outer, inner) do I...
+        if mask === nothing || (@inbounds mask[I...])
+            @inbounds E[i[] += 1] = I
+        end
+    end
+
+    return E
+end
+
+
+# totally necessary unrolled TiledIteration.EdgeIterator loop
+edgeloop(f!, outer::CartesianIndices, inner::CartesianIndices) =
+    edgeloop(f!, outer.indices, inner.indices)
+
+@inline function edgeloop(
+    f!,
+    outer::NTuple{N, AbstractUnitRange{Int}},
+    inner::NTuple{N, AbstractUnitRange{Int}},
+) where {N}
+    all(first.(inner) .∈ outer) && all(last.(inner) .∈ outer) ||
+        throw(DimensionMismatch("inner$inner must be in the interior of outer$outer"))
+    _edgeloop(f!, outer, inner)
+end
+
+@generated function _edgeloop(
+    f!::F,
+    outer::NTuple{N, AbstractUnitRange{Int}},
+    inner::NTuple{N, AbstractUnitRange{Int}},
+) where {F, N}
+    N == 0 && return :(nothing)
+    I = ntuple(d -> Symbol(:I, d), Val(N))
+
+    exf! = quote
+        f!($(I...))
+    end
+
+    ex = quote
+        for $(I[1]) in first(outer[1]):first(inner[1])-1
+            $exf!
+        end
+        for $(I[1]) in last(inner[1])+1:last(outer[1])
+            $exf!
+        end
+    end
+
+    for d in 2:N
+        expp = exf!
+        for n in 1:d-1
+            expp = quote
+                for $(I[n]) in outer[$n]
+                    $expp
+                end
+            end
+        end
+
+        ex = quote
+            for $(I[d]) in first(outer[$d]):first(inner[$d])-1
+                $expp
+            end
+            for $(I[d]) in inner[$d]
+                $ex
+            end
+            for $(I[d]) in last(inner[$d])+1:last(outer[$d])
+                $expp
+            end
+        end
+    end
+
+    quote
+        Base.@_inline_meta
+        $ex
+    end
 end
 
 

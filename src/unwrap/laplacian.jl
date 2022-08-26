@@ -139,7 +139,7 @@ function wrapped_laplacian!(
 ) where {T<:AbstractFloat}
     checkshape(d2u, u, (:d2u, :u))
 
-    nx, ny, nz, _ = size(u)
+    nx, ny, nz = size(u)[1:3]
     dx2, dy2, dz2 = convert.(T, inv.(dx.*dx))
 
     tsz = padded_tilesize(T, (2, 2, 2), 1)
@@ -173,7 +173,6 @@ end
 ##### Boundary treatment
 #####
 
-# unroll? probably too aggressive
 function wrapped_laplacian_boundary_neumann!(
     d2u::AbstractArray{<:AbstractFloat, N},
     u::AbstractArray{T, N},
@@ -182,26 +181,17 @@ function wrapped_laplacian_boundary_neumann!(
     N ∈ (3, 4) || throw(ArgumentError("arrays must be 3d or 4d, got $(N)d"))
     checkshape(d2u, u, (:d2u, :u))
 
-    sz = size(u)
-    nx, ny, nz = sz[1:3]
+    zeroT = zero(T)
+    nx, ny, nz = size(u)[1:3]
     dx2, dy2, dz2 = convert.(T, inv.(dx.*dx))
 
-    _zero = zero(T)
-
-    outer = CartesianIndices(ntuple(n -> 1:sz[n], Val(3)))
-    inner = CartesianIndices(ntuple(n -> 2:sz[n]-1, Val(3)))
-    E = EdgeIterator(outer, inner)
-
-    R = Vector{NTuple{3, Int}}(undef, length(E))
-    @inbounds for (i, I) in enumerate(E)
-        R[i] = Tuple(I)
-    end
+    R = edge_indices(axes(u)[1:3])
 
     @inbounds for t in axes(u, 4)
         _u = @view(u[:,:,:,t])
         _d2u = @view(d2u[:,:,:,t])
         @batch per=thread for (i, j, k) in R
-            Δ = _zero
+            Δ = zeroT
 
             if k > 1
                 Δ = muladd(-dz2, _wrap(_u[i,j,k] - _u[i,j,k-1]), Δ)
@@ -243,40 +233,32 @@ function wrapped_laplacian_boundary_periodic!(
     N ∈ (3, 4) || throw(ArgumentError("arrays must be 3d or 4d, got $(N)d"))
     checkshape(d2u, u, (:d2u, :u))
 
-    sz = size(u)
-    nx, ny, nz = sz[1:3]
+    nx, ny, nz = size(u)[1:3]
     dx2, dy2, dz2 = convert.(T, inv.(dx.*dx))
 
-    outer = CartesianIndices(ntuple(n -> 1:sz[n], Val(3)))
-    inner = CartesianIndices(ntuple(n -> 2:sz[n]-1, Val(3)))
-    E = EdgeIterator(outer, inner)
-
-    R = Vector{NTuple{3, Int}}(undef, length(E))
-    @inbounds for (i, I) in enumerate(E)
-        R[i] = Tuple(I)
-    end
+    R = edge_indices(axes(u)[1:3])
 
     @inbounds for t in axes(u, 4)
         _u = @view(u[:,:,:,t])
         _d2u = @view(d2u[:,:,:,t])
         @batch per=thread for (i, j, k) in R
-            du = k == 1 ? _u[i,j,k] - _u[i,j,end] : _u[i,j,k] - _u[i,j,k-1]
-            Δ = -dz2 * _wrap(du)
+            v = k == 1 ? _u[i,j,end] : _u[i,j,k-1]
+            Δ = -dz2 * _wrap(_u[i,j,k] - v)
 
-            du = j == 1 ? _u[i,j,k] - _u[i,end,k] : _u[i,j,k] - _u[i,j-1,k]
-            Δ = muladd(-dy2, _wrap(du), Δ)
+            v = j == 1 ? _u[i,end,k] : _u[i,j-1,k]
+            Δ = muladd(-dy2, _wrap(_u[i,j,k] - v), Δ)
 
-            du = i == 1 ? _u[i,j,k] - _u[end,j,k] : _u[i,j,k] - _u[i-1,j,k]
-            Δ = muladd(-dx2, _wrap(du), Δ)
+            v = i == 1 ? _u[end,j,k] : _u[i-1,j,k]
+            Δ = muladd(-dx2, _wrap(_u[i,j,k] - v), Δ)
 
-            du = i == nx ? _u[1,j,k] - _u[i,j,k] : _u[i+1,j,k] - _u[i,j,k]
-            Δ = muladd(dx2, _wrap(du), Δ)
+            v = i == nx ? _u[1,j,k] : _u[i+1,j,k]
+            Δ = muladd(dx2, _wrap(v - _u[i,j,k]), Δ)
 
-            du = j == ny ? _u[i,1,k] - _u[i,j,k] : _u[i,j+1,k] - _u[i,j,k]
-            Δ = muladd(dy2, _wrap(du), Δ)
+            v = j == ny ? _u[i,1,k] : _u[i,j+1,k]
+            Δ = muladd(dy2, _wrap(v - _u[i,j,k]), Δ)
 
-            du = k == nz ? _u[i,j,1] - _u[i,j,k] : _u[i,j,k+1] - _u[i,j,k]
-            Δ = muladd(dz2, _wrap(du), Δ)
+            v = k == nz ? _u[i,j,1] : _u[i,j,k+1]
+            Δ = muladd(dz2, _wrap(v - _u[i,j,k]), Δ)
 
             _d2u[i,j,k] = Δ
         end

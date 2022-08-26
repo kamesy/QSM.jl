@@ -16,7 +16,7 @@ using SLEEFPirates: pow, sincos_fast
 using Static: known
 using StaticArrays: SVector
 using ThreadingUtilities: initialize_task
-using TiledIteration: EdgeIterator, TileIterator, padded_tilesize
+using TiledIteration: TileIterator, padded_tilesize
 
 using LinearAlgebra
 using FFTW
@@ -52,11 +52,13 @@ end
 #####
 ##### Polyester.jl
 #####
+
 function reset_threading()
-    # after user interrupt during @batch loop, threading has to be reset:
+    # if @batch loop gets interrupted, threading has to be reset:
     # https://github.com/JuliaSIMD/Polyester.jl/issues/30
+    nt = min(nthreads(), (Sys.CPU_THREADS)::Int) - 1
     reset_workers!()
-    foreach(initialize_task, 1:min(nthreads(), (Sys.CPU_THREADS)::Int) - 1)
+    foreach(initialize_task, 1:nt)
     return nothing
 end
 
@@ -64,8 +66,8 @@ end
 #####
 ##### FFTW.jl
 #####
-const FFTW_NTHREADS = Ref{Int}(known(num_cores()))
 
+const FFTW_NTHREADS = Ref{Int}(known(num_cores()))
 
 @static if FFTW.fftw_provider == "fftw"
     # modified `FFTW.spawnloop` to use Polyester for multi-threading
