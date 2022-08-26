@@ -39,7 +39,7 @@ end
 function LSMRWorkspace(x::AbstractArray, A, b::AbstractArray)
     T = typeof(one(eltype(b)) / one(eltype(A)))
 
-    u = isa(b, Array) ? tcopy(b) : copy(b)
+    u = tcopy(b)
 
     v = similar(x, T)
     h = similar(x, T)
@@ -163,23 +163,9 @@ function lsmr!(
     cbar = one(Tr)
     sbar = zero(Tr)
 
-    if isa(x, Array)
-        tfill!(x, 0)
-    else
-        fill!(x, 0)
-    end
-
-    if isa(h, Array) && isa(v, Array)
-        _tcopyto!(h, v)
-    else
-        copyto!(h, v)
-    end
-
-    if isa(hbar, Array)
-        tfill!(hbar, 0)
-    else
-        fill!(hbar, 0)
-    end
+    tfill!(x, 0)
+    tfill!(hbar, 0)
+    tcopyto!(h, v)
 
     # Initialize variables for estimation of ||r||.
     βdd = β

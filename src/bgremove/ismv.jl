@@ -91,8 +91,8 @@ function _ismv!(
     _δ = one(eltype(s)) - sqrt(eps(eltype(s)))
 
     # erode mask
-    s = _tcopyto!(s, m) # in-place type conversion, reuse smv var
-    m0 = _tcopyto!(m0, m)
+    s = tcopyto!(s, m) # in-place type conversion, reuse smv var
+    m0 = tcopyto!(m0, m)
 
     F̂ = mul!(F̂, P, s)
     @inbounds @batch for I in eachindex(F̂)

@@ -133,7 +133,7 @@ function _pdf!(
     # pre-compute mask*weights
     if W === nothing
         # no weights
-        MW = _tcopyto!(MW, m)
+        MW = tcopyto!(MW, m)
 
     elseif ndims(W) == 3
         # same weights for all echoes

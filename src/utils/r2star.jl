@@ -26,7 +26,8 @@ function r2star_ll(
     size(mag, N) == NT || throw(DimensionMismatch())
     mask === nothing || length(mask) == length(mag) ÷ NT || throw(DimensionMismatch())
 
-    r2s = tzero(mag, size(mag)[1:N-1])
+    r2s = similar(mag, size(mag)[1:N-1])
+    r2s = tfill!(r2s, zero(T))
 
     vmag = reshape(mag, :, NT)
     vr2s = vec(r2s)
@@ -34,10 +35,8 @@ function r2star_ll(
     A = qr(Matrix{T}([-[TEs...] ones(NT)]))
 
     if mask === nothing
-        b = tcopy(log, transpose(vmag))
-
+        b = tmap(log, transpose(vmag))
         x̂ = ldiv!(A, b)
-
         @inbounds @batch for I in eachindex(vr2s)
             vr2s[I] = x̂[1,I]
         end
@@ -110,7 +109,8 @@ function r2star_arlo(
     all((≈)(TEs[2]-TEs[1]), TEs[2:end].-TEs[1:end-1]) ||
         throw(DomainError("ARLO requires equidistant echoes"))
 
-    r2s = tzero(mag, size(mag)[1:N-1])
+    r2s = similar(mag, size(mag)[1:N-1])
+    r2s = tfill!(r2s, zero(T))
 
     vmag = reshape(mag, :, NT)
     vr2s = vec(r2s)
@@ -238,8 +238,9 @@ function r2star_crsi(
     sigma === nothing || NR == N-1 || throw(DimensionMismatch())
     M > 0 || throw(ArgumentError("interpolation factor M must be greater than 0"))
 
-    P = tcopy(x -> x*x, mag)
-    r2s = tzero(mag, size(mag)[1:N-1])
+    P = tmap(x -> x*x, mag)
+    r2s = similar(mag, size(mag)[1:N-1])
+    r2s = tfill!(r2s, zero(T))
 
     vP = reshape(P, :, NT)
     vr2s = vec(r2s)
@@ -376,7 +377,8 @@ function r2star_numart2s(
     size(mag, N) == NT || throw(DimensionMismatch())
     mask === nothing || length(mask) == length(mag) ÷ NT || throw(DimensionMismatch())
 
-    r2s = tzero(mag, size(mag)[1:N-1])
+    r2s = similar(mag, size(mag)[1:N-1])
+    r2s = tfill!(r2s, zero(T))
 
     vmag = reshape(mag, :, NT)
     vr2s = vec(r2s)

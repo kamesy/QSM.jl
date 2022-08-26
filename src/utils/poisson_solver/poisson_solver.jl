@@ -47,16 +47,16 @@ function solve_poisson_mgpcg!(
         uc = u
     else
         mc = similar(mask, szc)
-        mc = _tcopyto!(mc, @view(mask[Rc]))
+        mc = tcopyto!(mc, @view(mask[Rc]))
 
         if N == 3
             d2uc = @view(d2u[Rc])
             uc = similar(u, szc)
-            uc = _tcopyto!(uc, @view(u[Rc]))
+            uc = tcopyto!(uc, @view(u[Rc]))
         else
             d2uc = @view(d2u[Rc,:])
             uc = similar(u, (szc..., size(u, 4)))
-            uc = _tcopyto!(uc, @view(u[Rc,:]))
+            uc = tcopyto!(uc, @view(u[Rc,:]))
         end
     end
 
@@ -66,9 +66,9 @@ function solve_poisson_mgpcg!(
 
     if _crop
         if N == 3
-            _tcopyto!(@view(u[Rc]), uc)
+            tcopyto!(@view(u[Rc]), uc)
         else
-            _tcopyto!(@view(u[Rc,:]), uc)
+            tcopyto!(@view(u[Rc,:]), uc)
         end
     end
 
@@ -160,7 +160,7 @@ function solve_poisson_fft!(
         iP = inv(P)
         d2û = P*d2u
     else
-        d2û = _tcopyto!(similar(d2u, complex(eltype(d2u))), d2u)
+        d2û = tcopyto!(similar(d2u, complex(eltype(d2u))), d2u)
         P = plan_fft!(d2û, 1:3)
         iP = inv(P)
         d2û = P*d2û
@@ -188,7 +188,7 @@ function solve_poisson_fft!(
         u = mul!(u, iP, d2û)
     else
         d2û = iP*d2û
-        u = _tcopyto!(real, u, d2û)
+        u = tmap!(real, u, d2û)
     end
 
     return u

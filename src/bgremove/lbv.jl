@@ -104,16 +104,16 @@ function _lbv!(
         flc = fl
     else
         mc = similar(mask, szc)
-        mc = _tcopyto!(mc, @view(mask[Rc]))
+        mc = tcopyto!(mc, @view(mask[Rc]))
 
         if N == 3
             fc = @view(f[Rc])
             flc = similar(fl, szc)
-            flc = _tcopyto!(flc, @view(fl[Rc]))
+            flc = tcopyto!(flc, @view(fl[Rc]))
         else
             fc = @view(f[Rc,:])
             flc = similar(fl, (szc..., size(fl, 4)))
-            flc = _tcopyto!(flc, @view(fl[Rc,:]))
+            flc = tcopyto!(flc, @view(fl[Rc,:]))
         end
     end
 
@@ -147,9 +147,9 @@ function _lbv!(
 
     if _crop
         if N == 3
-            _tcopyto!(@view(fl[Rc]), flc)
+            tcopyto!(@view(fl[Rc]), flc)
         else
-            _tcopyto!(@view(fl[Rc,:]), flc)
+            tcopyto!(@view(fl[Rc,:]), flc)
         end
     end
 

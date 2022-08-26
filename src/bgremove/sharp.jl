@@ -86,7 +86,7 @@ function _sharp!(
     _δ    = one(eltype(s)) - sqrt(eps(eltype(s)))
 
     # erode mask
-    s = _tcopyto!(s, m) # in-place type conversion, reuse smv var
+    s = tcopyto!(s, m) # in-place type conversion, reuse smv var
 
     F̂ = mul!(F̂, P, s)
     @inbounds @batch for I in eachindex(F̂)
@@ -232,7 +232,7 @@ function _sharp!(
     _δ    = one(eltype(s)) - sqrt(eps(eltype(s)))
 
     # fft of original mask
-    s = _tcopyto!(s, mr) # in-place type conversion
+    s = tcopyto!(s, mr) # in-place type conversion
     M̂ = mul!(M̂, P, s)
 
     @inbounds for (i, r) in enumerate(rs)
@@ -344,7 +344,7 @@ function _sharp!(
     _δ    = one(eltype(s)) - sqrt(eps(eltype(s)))
 
     # fft of original mask
-    s = _tcopyto!(s, mr) # in-place type conversion
+    s = tcopyto!(s, mr) # in-place type conversion
     M̂ = mul!(M̂, P, s)
 
     @inbounds for (i, r) in enumerate(rs)

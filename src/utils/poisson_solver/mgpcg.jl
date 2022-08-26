@@ -62,10 +62,10 @@ function mgpcg!(
         maxlevel = maxlevel
     )
 
-    q = tzero(b, size(A))
     p = similar(b, size(A))
+    q = similar(b, size(A))
 
-    M.workspace.x[1] = q
+    M.workspace.x[1] = tfill!(q, zero(T))
 
     if N == 3
         M.workspace.b[1] = tcopy(b)
@@ -76,12 +76,12 @@ function mgpcg!(
         M.workspace.b[1] = similar(b, size(A))
 
         for t in axes(b, 4)
-            _tcopyto!(xt, @view(x[:,:,:,t]))
-            _tcopyto!(M.workspace.b[1], @view(b[:,:,:,t]))
+            tcopyto!(xt, @view(x[:,:,:,t]))
+            tcopyto!(M.workspace.b[1], @view(b[:,:,:,t]))
 
             xt = _mgpcg!(xt, M, p, cycle, ncycles, atol, rtol, maxit, verbose)
 
-            _tcopyto!(@view(x[:,:,:,t]), xt)
+            tcopyto!(@view(x[:,:,:,t]), xt)
         end
     end
 

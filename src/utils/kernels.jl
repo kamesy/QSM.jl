@@ -136,7 +136,7 @@ function _dipole_kernel!(
     d = _dipole_kernel!(d, sz, vsz, bdir, :i, shift=true)
 
     D̂ = mul!(D̂, P, d)
-    D = _tcopyto!(real, D, D̂)
+    D = tmap!(real, D, D̂)
 
     return D
 end
@@ -152,7 +152,7 @@ function _dipole_kernel!(
     D̂ = _dipole_kernel!(D̂, sz, vsz, bdir, :i, shift=true)
 
     D̂ = P*D̂
-    D = _tcopyto!(real, D, D̂)
+    D = tmap!(real, D, D̂)
 
     return D
 end
@@ -321,7 +321,7 @@ function _smv_kernel!(
 
     # normalizing
     a = inv(sum(s))
-    s = _tcopyto!(x -> a*x, s, s)
+    s = tmap!(x -> a*x, s)
 
     return s
 end
@@ -341,7 +341,7 @@ function _smv_kernel!(
 
     # fft, discard imaginary (even function -> imag = 0), and normalize
     Ŝ = mul!(Ŝ, P, s)
-    S = _tcopyto!(x -> a*real(x), S, Ŝ)
+    S = tmap!(x -> a*real(x), S, Ŝ)
 
     return S
 end
@@ -360,7 +360,7 @@ function _smv_kernel!(
 
     # fft, discard imaginary (even function -> imag = 0), and normalize
     Ŝ = P*Ŝ
-    S = _tcopyto!(x -> a*real(x), S, Ŝ)
+    S = tmap!(x -> a*real(x), S, Ŝ)
 
     return S
 end
@@ -498,7 +498,7 @@ function _laplace_kernel!(
     Δ = _laplace_kernel!(Δ, vsz, negative=negative, shift=true)
 
     L̂ = mul!(L̂, P, Δ)
-    L = _tcopyto!(real, L, L̂)
+    L = tmap!(real, L, L̂)
 
     return L
 end
@@ -513,7 +513,7 @@ function _laplace_kernel!(
     L̂ = _laplace_kernel!(L̂, vsz, negative=negative, shift=true)
 
     L̂ = P*L̂
-    L = _tcopyto!(real, L, L̂)
+    L = tmap!(real, L, L̂)
 
     return L
 end

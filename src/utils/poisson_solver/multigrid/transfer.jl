@@ -10,7 +10,8 @@ end
 function restrict(interior::AbstractArray{Bool, 3})
     sz = size(interior)
     szc = restrict_size(sz)
-    return restrict!(tzero(interior, szc), interior)
+    interiorc = tfill!(similar(interior, szc), zero(Bool))
+    return restrict!(interiorc, interior)
 end
 
 function restrict!(mc::AbstractArray{Bool, 3}, m::AbstractArray{Bool, 3})

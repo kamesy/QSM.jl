@@ -270,7 +270,7 @@ function _kdiv_ikernel!(
 
         elseif reg == :laplacian
             Γ = _laplace_kernel!(Γ, F, f, vsz, P)
-            Γ = _tcopyto!(abs2, Γ, Γ)
+            Γ = tmap!(abs2, Γ)
         end
 
         @inbounds @batch for I in eachindex(D)

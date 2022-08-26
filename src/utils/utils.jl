@@ -153,7 +153,7 @@ function padarray!(
     all(szp .>= sz) || throw(DimensionMismatch())
 
     if szp == sz
-        return _tcopyto!(xp, x)
+        return tcopyto!(xp, x)
     end
 
     valT = convert(Txp, val)
@@ -286,7 +286,7 @@ Crop array to mask.
 function crop_mask(x::AbstractArray, m::AbstractArray{T} = x; out = zero(T)) where {T}
     checkshape(x, m, (:x, :m))
     Rc = crop_indices(m, out)
-    xc = _tcopyto!(similar(x, size(Rc)), @view(x[Rc]))
+    xc = tcopyto!(similar(x, size(Rc)), @view(x[Rc]))
     return xc
 end
 
@@ -387,7 +387,7 @@ function erode_mask!(
     checkshape(m1, m0, (:emask, :mask))
 
     if iter < 1
-        return _tcopyto!(m1, m0)
+        return tcopyto!(m1, m0)
     end
 
     if iter > 1
@@ -405,7 +405,7 @@ function erode_mask!(
         end
 
         if t < iter
-            _tcopyto!(m0, m1)
+            tcopyto!(m0, m1)
         end
     end
 
@@ -467,7 +467,7 @@ function psf2otf(
     if szk == sz
         _kp = k
     else
-        _kp = tzero(k, sz)
+        _kp = tfill!(similar(k, sz), zero(T))
         @inbounds @batch minbatch=1024 for I in CartesianIndices(k)
             _kp[I] = k[I]
         end
@@ -485,7 +485,7 @@ function psf2otf(
     # discard imaginary part if within roundoff error
     nops = length(k)*sum(log2, szk)
     if maximum(x -> abs(imag(x)), K) / maximum(abs2, K) ≤ nops*eps(T)
-        _tcopyto!(real, K, K)
+        tmap!(real, K)
     end
 
     return K
@@ -496,38 +496,55 @@ end
 ##### Multi-threaded Base utilities
 #####
 
-function tzero(x::AbstractArray{T}, sz::NTuple{N, Integer} = size(x)) where {T, N}
-    return tfill!(similar(x, sz), zero(T))
-end
+tzero(x) = zero(x)
+tzero(x::AbstractArray{T}) where {T} = tfill!(similar(x, typeof(zero(T))), zero(T))
 
-function tcopy(x::AbstractArray)
-    return _tcopyto!(similar(x), x)
-end
 
-function tcopy(f::Function, x::AbstractArray)
-    return _tcopyto!(f, similar(x), x)
-end
+tfill!(A, x) = fill!(A, x)
 
 function tfill!(A::AbstractArray{T}, x) where {T}
     xT = convert(T, x)
-    @inbounds @batch minbatch=1024 for I in eachindex(A)
-        A[I] = xT
+    @batch minbatch=1024 for I in eachindex(A)
+        @inbounds A[I] = xT
     end
     return A
 end
 
-function _tcopyto!(y, x)
-    @inbounds @batch minbatch=1024 for I in eachindex(y, x)
-        y[I] = x[I]
-    end
-    return y
+
+tmap(f, iters...) = map(f, iters...)
+
+function tmap(f, A::AbstractArray)
+    isempty(A) && return similar(A, 0)
+    dest = similar(A, typeof(f(A[1])))
+    return tmap!(f, dest, A)
 end
 
-function _tcopyto!(f::Function, y, x)
-    @inbounds @batch minbatch=1024 for I in eachindex(y, x)
-        y[I] = f(x[I])
+
+tmap!(f, dest, iters...) = map!(f, dest, iters...)
+tmap!(f, A::AbstractArray) = tmap!(f, A, A)
+
+function tmap!(f::F, dest::AbstractArray, A::AbstractArray) where {F}
+    checkshape(Bool, dest, A) || return map!(f, dest, A)
+    @batch minbatch=1024 for I in eachindex(dest, A)
+        val = f(@inbounds A[I])
+        @inbounds dest[I] = val
     end
-    return y
+    return dest
+end
+
+
+tcopy(x) = copy(x)
+tcopy(x::AbstractArray) = tcopyto!(similar(x), x)
+
+
+tcopyto!(dest, src) = copyto!(dest, src)
+
+function tcopyto!(dest::AbstractArray, src::AbstractArray)
+    checkshape(Bool, dest, src) || return copyto!(dest, src)
+    @batch minbatch=1024 for I in eachindex(dest, src)
+        @inbounds dest[I] = src[I]
+    end
+    return dest
 end
 
 
