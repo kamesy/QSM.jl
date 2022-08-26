@@ -29,7 +29,7 @@ struct Smoothers{N, T} <: AbstractSmoother
 end
 
 function (s::Smoothers{N})(x, A, b) where {N}
-    @inbounds for i in 1:N
+    for i in 1:N
         x = s.s[i](x, A, b)
     end
     return x
@@ -203,7 +203,7 @@ function rbgs!(
     idz2 = -iD * A.idx2[3]
 
     for s in C
-        @inbounds @batch minbatch=8 for (I, J, K) in R
+        @batch minbatch=8 for (I, J, K) in R
             for k in K
                 ks = Bool(k & 1)
                 for j in J

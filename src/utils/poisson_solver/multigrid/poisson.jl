@@ -68,14 +68,12 @@ function LinearAlgebra.mul!(
     x::AbstractArray{T, 3},
 ) where {T<:AbstractFloat}
     D = convert(T, A.D)
-    idx2 = convert(T, A.idx2[1])
-    idy2 = convert(T, A.idx2[2])
-    idz2 = convert(T, A.idx2[3])
+    idx2, idy2, idz2 = convert.(T, A.idx2)
 
     # @threads ~10% faster here
     # Polyester needs A.interior inside or the loop slows down by 100%???
     # ie. slow down when m = A.interior ... if m[i,j,k] ...
-    @inbounds @batch for (I, J, K) in A.R8
+    @batch for (I, J, K) in A.R8
         for k in K
             for j in J
                 for i in I
@@ -113,14 +111,12 @@ function LinearAlgebra.mul!(
     x::AbstractArray{T, 4},
 ) where {T<:AbstractFloat}
     D = convert(T, A.D)
-    idx2 = convert(T, A.idx2[1])
-    idy2 = convert(T, A.idx2[2])
-    idz2 = convert(T, A.idx2[3])
+    idx2, idy2, idz2 = convert.(T, A.idx2)
 
     # @threads ~10% faster here
     # Polyester needs A.interior inside or the loop slows down by 100%???
     # ie. slow down when m = A.interior ... if m[i,j,k] ...
-    @inbounds for t in axes(x, 4)
+    for t in axes(x, 4)
         xt = @view(x[:,:,:,t])
         d2xt = @view(d2x[:,:,:,t])
         @batch for (I, J, K) in A.R8
@@ -171,7 +167,7 @@ function residual!(
     # @threads ~10% faster here
     # Polyester needs A.interior inside or the loop slows down by 100%???
     # ie. slow down when m = A.interior ... if m[i,j,k] ...
-    @inbounds @batch for (I, J, K) in A.R8
+    @batch for (I, J, K) in A.R8
         for k in K
             for j in J
                 for i in I
@@ -216,7 +212,7 @@ function __norm_residual(
     idy2 = convert(T, -A.idx2[2])
     idz2 = convert(T, -A.idx2[3])
 
-    @inbounds @batch threadlocal=zero(T)::T for (I, J, K) in A.R8
+    @batch threadlocal=zero(T)::T for (I, J, K) in A.R8
         for k in K
             for j in J
                 for i in I
@@ -268,7 +264,7 @@ function boundary_mask!(
     end
 
     # interior
-    @inbounds @batch minbatch=8 for kc in 2:nzc-1
+    @batch minbatch=8 for kc in 2:nzc-1
         k = (kc << 1) - 1
         for jc in 2:nyc-1
             j = (jc << 1) - 1
@@ -297,7 +293,7 @@ function boundary_mask!(
         end
     end
 
-    @inbounds @batch minbatch=8 for k in 2:nz-1
+    @batch minbatch=8 for k in 2:nz-1
         for j in 2:ny-1
             for i in 2:nx-1
                 if m[i,j,k]
@@ -320,7 +316,7 @@ end
 
 function tfill!(x::AbstractArray{T, N}, v, A::Poisson2{<:AbstractFloat, N}) where {T, N}
     vT = convert(T, v)
-    @inbounds @batch minbatch=1024 for I in A.RI
+    @batch minbatch=1024 for I in A.RI
         x[I] = vT
     end
     return x

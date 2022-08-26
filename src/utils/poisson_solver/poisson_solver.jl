@@ -24,6 +24,7 @@ function solve_poisson_mgpcg!(
     kwargs...
 ) where {T, N}
     N ∈ (3, 4) || throw(ArgumentError("arrays must be 3d or 4d, got $(N)d"))
+
     checkshape(u, d2u, (:u, :d2u))
     checkshape(axes(mask), axes(u)[1:3], (:mask, :u))
 
@@ -90,12 +91,11 @@ function solve_poisson_dct!(
     dx::NTuple{3, Real}
 ) where {N}
     N ∈ (3, 4) || throw(ArgumentError("arrays must be 3d or 4d, got $(N)d"))
+
     checkshape(u, d2u, (:u, :d2u))
 
     nx, ny, nz = size(d2u)[1:3]
-    idx2 = inv(dx[1].*dx[1])
-    idy2 = inv(dx[2].*dx[2])
-    idz2 = inv(dx[3].*dx[3])
+    idx2, idy2, idz2 = inv.(dx.*dx)
 
     # extreme slowdown for certain sizes with lots of threads
     # even worse for in-place, ie dct!
@@ -109,7 +109,7 @@ function solve_poisson_dct!(
     Y = [2*(cospi(j)-1)*idy2 for j in range(0, step=1/ny, length=ny)]
     Z = [2*(cospi(k)-1)*idz2 for k in range(0, step=1/nz, length=nz)]
 
-    @inbounds for t in axes(d2û, 4)
+    for t in axes(d2û, 4)
         d2ût = @view(d2û[:,:,:,t])
         @batch for k in 1:nz
             for j in 1:ny
@@ -143,12 +143,11 @@ function solve_poisson_fft!(
     dx::NTuple{3, Real}
 ) where {N}
     N ∈ (3, 4) || throw(ArgumentError("arrays must be 3d or 4d, got $(N)d"))
+
     checkshape(u, d2u, (:u, :d2u))
 
     nx, ny, nz = size(d2u)[1:3]
-    idx2 = inv(dx[1].*dx[1])
-    idy2 = inv(dx[2].*dx[2])
-    idz2 = inv(dx[3].*dx[3])
+    idx2, idy2, idz2 = inv.(dx.*dx)
 
     _rfft = iseven(nx)
     FFTW.set_num_threads(FFTW_NTHREADS[])
@@ -170,7 +169,7 @@ function solve_poisson_fft!(
     Y = [2*(cospi(j)-1)*idy2 for j in fftfreq(size(u, 2), 2)]
     Z = [2*(cospi(k)-1)*idz2 for k in fftfreq(size(u, 3), 2)]
 
-    @inbounds for t in axes(d2û, 4)
+    for t in axes(d2û, 4)
         d2ût = @view(d2û[:,:,:,t])
         @batch for k in 1:nz
             for j in 1:ny

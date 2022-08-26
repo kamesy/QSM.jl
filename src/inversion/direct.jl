@@ -175,16 +175,9 @@ function _kdiv!(
     checkshape(x, f, (:x, :f))
     checkshape(axes(mask), axes(f)[1:3])
 
-    Dkernel ∈ (:k, :kspace, :i, :ispace) ||
-        throw(ArgumentError("Dkernel must be one of :k, :kspace, :i, :ispace, got :$(Dkernel)"))
-
-    method ∈ (:tkd, :tsvd, :tikh) ||
-        throw(ArgumentError("method must be one of :tkd, :tsvd, got :$(method)"))
-
-    if method == :tikh
-        reg ∈ (:identity, :gradient, :laplacian) ||
-            throw(ArgumentError("reg must be one of :identity, :gradient, :laplacian, got :$(reg)"))
-    end
+    checkopts(Dkernel, (:k, :kspace, :i, :ispace), :Dkernel)
+    checkopts(method, (:tkd, :tsvd, :tikh), :method)
+    method == :tikh && checkopts(reg, (:identity, :gradient, :laplacian), :reg)
 
     # pad to fast fft size
     fp = padfastfft(@view(f[:,:,:,1]), pad, rfft=true)
@@ -208,7 +201,7 @@ function _kdiv!(
     # inverse k-space kernel
     iD = _kdiv_ikernel!(D, F̂, fp, vsz, P, lambda, reg, method)
 
-    @inbounds for t in axes(f, 4)
+    for t in axes(f, 4)
         fp = padarray!(fp, @view(f[:,:,:,t]))
 
         F̂ = mul!(F̂, P, fp)
@@ -243,22 +236,22 @@ function _kdiv_ikernel!(
         δ = convert(T, lambda)
         iδ = inv(δ)
 
-        @inbounds @batch for I in eachindex(D)
+        @batch for I in eachindex(D)
             D[I] = ifelse(abs(D[I]) ≤ δ, copysign(iδ, D[I]), inv(D[I]))
         end
 
     elseif method == :tsvd
         δ = convert(T, lambda)
-        _zero = zero(T)
+        zeroT = zero(T)
 
-        @inbounds @batch for I in eachindex(D)
-            D[I] = ifelse(abs(D[I]) ≤ δ, _zero, inv(D[I]))
+        @batch for I in eachindex(D)
+            D[I] = ifelse(abs(D[I]) ≤ δ, zeroT, inv(D[I]))
         end
 
 
     elseif method == :tikh
         λ = convert(T, lambda)
-        _zero = zero(T)
+        zeroT = zero(T)
 
         Γ = similar(D)
 
@@ -273,8 +266,8 @@ function _kdiv_ikernel!(
             Γ = tmap!(abs2, Γ)
         end
 
-        @inbounds @batch for I in eachindex(D)
-            D[I] = ifelse(iszero(D[I]) && iszero(Γ[I]), _zero, inv(D[I]*D[I] + λ*Γ[I])*D[I])
+        @batch for I in eachindex(D)
+            D[I] = ifelse(iszero(D[I]) && iszero(Γ[I]), zeroT, inv(D[I]*D[I] + λ*Γ[I])*D[I])
         end
 
     end

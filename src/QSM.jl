@@ -80,8 +80,7 @@ const FFTW_NTHREADS = Ref{Int}(known(num_cores()))
     end
 
     function fftw_set_threading(lib::Symbol = :FFTW)
-        lib ∈ (:FFTW, :Polyester, :Threads) ||
-            throw(ArgumentError("lib must be one of :FFTW, :Polyester or :Threads, got :$(lib)"))
+        checkopts(lib, (:FFTW, :Polyester, :Threads), :lib)
 
         if lib ∈ (:Polyester, :Threads) && nthreads() < 2
             @warn "Cannot use $lib with FFTW. Defaulting to FFTW multi-threading" Threads.nthreads()

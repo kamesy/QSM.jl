@@ -91,12 +91,10 @@ function _rts!(
 
     checkshape(x, f, (:x, :f))
     checkshape(axes(mask), axes(f)[1:3])
-
-    Dkernel ∈ (:k, :kspace, :i, :ispace) ||
-        throw(ArgumentError("Dkernel must be one of :k, :kspace, :i, :ispace, got :$(Dkernel)"))
+    checkopts(Dkernel, (:k, :kspace, :i, :ispace), :Dkernel)
 
     # convert scalars
-    _zero = zero(T)
+    zeroT = zero(T)
 
     ρ = convert(T, rho)
     δ = convert(T, delta)
@@ -159,11 +157,11 @@ function _rts!(
     L = _laplace_kernel!(L, F̂, xp, vsz, P, negative=true)
 
     # mask of well-conditioned frequencies
-    @inbounds @batch for I in eachindex(M)
-        M[I] = ifelse(abs(D[I]) > δ, μ, _zero)
+    @batch for I in eachindex(M)
+        M[I] = ifelse(abs(D[I]) > δ, μ, zeroT)
     end
 
-    @inbounds for t in axes(f, 4)
+    for t in axes(f, 4)
         if verbose && size(f, 4) > 1
             @printf("Echo: %d/%d\n", t, size(f, 4))
         end
@@ -174,7 +172,7 @@ function _rts!(
         # Step 1: Well-conditioned
         ######################################################################
         B̂ = mul!(B̂, P, xp)
-        lsmr!(WS; lambda=_zero, atol=_zero, btol=_zero, maxit=lstol)
+        lsmr!(WS; lambda=zeroT, atol=zeroT, btol=zeroT, maxit=lstol)
 
         xp = mul!(xp, iP, X̂)
 
@@ -190,8 +188,8 @@ function _rts!(
         @batch for I in eachindex(F̂)
             a = muladd(ρ, L[I], M[I])
             if iszero(a)
-                F̂[I] = _zero
-                iA[I] = _zero
+                F̂[I] = zeroT
+                iA[I] = zeroT
             else
                 ia = inv(a)
                 F̂[I] = ia * M[I] * X̂[I]
@@ -200,9 +198,9 @@ function _rts!(
         end
 
         nr = typemax(T)
-        px = tfill!(px, _zero)
-        py = tfill!(py, _zero)
-        pz = tfill!(pz, _zero)
+        px = tfill!(px, zeroT)
+        py = tfill!(py, zeroT)
+        pz = tfill!(pz, zeroT)
         vx, vy, vz = _gradfp!(vx, vy, vz, xp, vsz)
 
         if verbose
@@ -258,7 +256,7 @@ function _rts!(
             @batch for I in eachindex(px)
                 d = dx[I]
                 p = px[I] + d
-                y = ifelse(abs(p) ≤ iρ, _zero, copysign(abs(p)-iρ, p))
+                y = ifelse(abs(p) ≤ iρ, zeroT, copysign(abs(p)-iρ, p))
                 px[I] = p - y
                 vx[I] = y - p + y
                 dx[I] = d - y
@@ -267,7 +265,7 @@ function _rts!(
             @batch for I in eachindex(py)
                 d = dy[I]
                 p = py[I] + d
-                y = ifelse(abs(p) ≤ iρ, _zero, copysign(abs(p)-iρ, p))
+                y = ifelse(abs(p) ≤ iρ, zeroT, copysign(abs(p)-iρ, p))
                 py[I] = p - y
                 vy[I] = y - p + y
                 dy[I] = d - y
@@ -276,7 +274,7 @@ function _rts!(
             @batch for I in eachindex(pz)
                 d = dz[I]
                 p = pz[I] + d
-                y = ifelse(abs(p) ≤ iρ, _zero, copysign(abs(p)-iρ, p))
+                y = ifelse(abs(p) ≤ iρ, zeroT, copysign(abs(p)-iρ, p))
                 pz[I] = p - y
                 vz[I] = y - p + y
                 dz[I] = d - y
@@ -336,7 +334,7 @@ end
 
 
 function _A_rts!(Dv, v, D)
-    @inbounds @batch for I in eachindex(Dv)
+    @batch for I in eachindex(Dv)
         Dv[I] = D[I]*v[I]
     end
     return Dv

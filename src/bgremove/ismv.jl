@@ -88,24 +88,24 @@ function _ismv!(
     S = _smv_kernel!(S, F̂, s, vsz, r, P)
 
     # constants
-    _δ = one(eltype(s)) - sqrt(eps(eltype(s)))
+    δ = one(eltype(s)) - sqrt(eps(eltype(s)))
 
     # erode mask
     s = tcopyto!(s, m) # in-place type conversion, reuse smv var
     m0 = tcopyto!(m0, m)
 
     F̂ = mul!(F̂, P, s)
-    @inbounds @batch for I in eachindex(F̂)
+    @batch for I in eachindex(F̂)
         F̂[I] *= S[I]
     end
 
     s = mul!(s, iP, F̂)
-    @inbounds @batch for I in eachindex(m)
-        m[I] = s[I] > _δ
+    @batch for I in eachindex(m)
+        m[I] = s[I] > δ
     end
 
     # iSMV
-    @inbounds for t in axes(f, 4)
+    for t in axes(f, 4)
         if verbose && size(f, 4) > 1
             @printf("Echo: %d/%d\n", t, size(f, 4))
         end
@@ -135,7 +135,7 @@ end
 
 
 function __ismv!(f::AbstractArray{T}, f0, S, bc, m, iP, F̂, P, tol, maxit, verbose) where {T}
-    @inbounds @batch for I in eachindex(f0)
+    @batch for I in eachindex(f0)
         f0[I] = m[I]*f[I]
     end
 
@@ -146,7 +146,7 @@ function __ismv!(f::AbstractArray{T}, f0, S, bc, m, iP, F̂, P, tol, maxit, verb
         @printf("iter%6s\tresnorm\n", "")
     end
 
-    @inbounds for i in 1:maxit
+    for i in 1:maxit
         if nr ≤ ϵ
             break
         end

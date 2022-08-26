@@ -80,27 +80,27 @@ function _sharp!(
     S = _smv_kernel!(S, F̂, s, vsz, r, P)
 
     # constants
-    _thr  = convert(eltype(S), thr)
-    _one  = one(eltype(S))
-    _zero = zero(eltype(F̂))
-    _δ    = one(eltype(s)) - sqrt(eps(eltype(s)))
+    thrT  = convert(eltype(S), thr)
+    oneT  = one(eltype(S))
+    zeroT = zero(eltype(F̂))
+    δ     = one(eltype(s)) - sqrt(eps(eltype(s)))
 
     # erode mask
     s = tcopyto!(s, m) # in-place type conversion, reuse smv var
 
     F̂ = mul!(F̂, P, s)
-    @inbounds @batch for I in eachindex(F̂)
+    @batch for I in eachindex(F̂)
         F̂[I] *= S[I]
-        S[I] = _one - S[I]
+        S[I] = oneT - S[I]
     end
 
     s = mul!(s, iP, F̂)
-    @inbounds @batch for I in eachindex(m)
-        m[I] = s[I] > _δ
+    @batch for I in eachindex(m)
+        m[I] = s[I] > δ
     end
 
     # SHARP
-    @inbounds for t in axes(f, 4)
+    for t in axes(f, 4)
         if t > 1
             fp = padarray!(fp, @view(f[Rc,t]))
         end
@@ -117,7 +117,7 @@ function _sharp!(
 
         F̂ = mul!(F̂, P, fp)
         @batch for I in eachindex(F̂)
-            F̂[I] = ifelse(abs(S[I]) < _thr, _zero, F̂[I]*inv(S[I]))
+            F̂[I] = ifelse(abs(S[I]) < thrT, zeroT, F̂[I]*inv(S[I]))
         end
 
         fp = mul!(fp, iP, F̂)
@@ -226,34 +226,34 @@ function _sharp!(
     fp = tfill!(fp, 0)
 
     # constants
-    _thr  = convert(eltype(S), thr)
-    _one  = one(eltype(S))
-    _zero = zero(eltype(F̂))
-    _δ    = one(eltype(s)) - sqrt(eps(eltype(s)))
+    thrT  = convert(eltype(S), thr)
+    oneT  = one(eltype(S))
+    zeroT = zero(eltype(F̂))
+    δ     = one(eltype(s)) - sqrt(eps(eltype(s)))
 
     # fft of original mask
     s = tcopyto!(s, mr) # in-place type conversion
     M̂ = mul!(M̂, P, s)
 
-    @inbounds for (i, r) in enumerate(rs)
+    for (i, r) in enumerate(rs)
         # get smv kernel
         S = _smv_kernel!(S, F̂, s, vsz, r, P)
 
         # erode mask
         @batch for I in eachindex(F̂)
             F̂[I] = S[I] * M̂[I]
-            S[I] = _one - S[I]
+            S[I] = oneT - S[I]
         end
 
         s = mul!(s, iP, F̂)
         @batch for I in eachindex(mr)
-            mr[I] = s[I] > _δ
+            mr[I] = s[I] > δ
         end
 
         # high-pass filter first (largest) kernel for deconvolution
         if i == 1
             @batch for I in eachindex(iS)
-                iS[I] = ifelse(abs(S[I]) < _thr, _zero, inv(S[I]))
+                iS[I] = ifelse(abs(S[I]) < thrT, zeroT, inv(S[I]))
             end
         end
 
@@ -301,7 +301,7 @@ function _sharp!(
     checkshape(fl, f, (:fl, :f))
     checkshape(smask, mask, (:smask, :mask))
     checkshape(axes(mask), axes(f)[1:3], (:mask, :f))
-    length(r) > 0 || throw(ArgumentError("r must not be empty"))
+    !isempty(r) || throw(ArgumentError("r must not be empty"))
 
     rs = sort!(unique(collect(r)), rev=true)
 
@@ -338,34 +338,34 @@ function _sharp!(
     fp = tfill!(fp, 0)
 
     # constants
-    _thr  = convert(eltype(S), thr)
-    _one  = one(eltype(S))
-    _zero = zero(eltype(F̂))
-    _δ    = one(eltype(s)) - sqrt(eps(eltype(s)))
+    thrT  = convert(eltype(S), thr)
+    oneT  = one(eltype(S))
+    zeroT = zero(eltype(F̂))
+    δ     = one(eltype(s)) - sqrt(eps(eltype(s)))
 
     # fft of original mask
     s = tcopyto!(s, mr) # in-place type conversion
     M̂ = mul!(M̂, P, s)
 
-    @inbounds for (i, r) in enumerate(rs)
+    for (i, r) in enumerate(rs)
         # get smv kernel
         S = _smv_kernel!(S, F̂, s, vsz, r, P)
 
         # erode mask
         @batch for I in eachindex(F̂)
             F̂[I] = S[I] * M̂[I]
-            S[I] = _one - S[I]
+            S[I] = oneT - S[I]
         end
 
         s = mul!(s, iP, F̂)
         @batch for I in eachindex(mr)
-            mr[I] = s[I] > _δ
+            mr[I] = s[I] > δ
         end
 
         # high-pass filter first (largest) kernel for deconvolution
         if i == 1
             @batch for I in eachindex(iS)
-                iS[I] = ifelse(abs(S[I]) < _thr, _zero, inv(S[I]))
+                iS[I] = ifelse(abs(S[I]) < thrT, zeroT, inv(S[I]))
             end
         end
 
@@ -391,7 +391,7 @@ function _sharp!(
 
     # deconvolution + high-pass filter
     F̂p = mul!(F̂p, P4, fp)
-    @inbounds for t in axes(F̂p, 4)
+    for t in axes(F̂p, 4)
         F̂t = @view(F̂p[:,:,:,t])
         @batch for I in eachindex(F̂t)
             F̂t[I] *= iS[I]
@@ -399,7 +399,7 @@ function _sharp!(
     end
 
     fp = mul!(fp, iP4, F̂p)
-    @inbounds for t in axes(fp, 4)
+    for t in axes(fp, 4)
         ft = @view(fp[:,:,:,t])
         @batch for I in eachindex(ft)
             ft[I] *= m[I]

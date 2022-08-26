@@ -121,12 +121,11 @@ function _nltv!(
         end
     end
 
-    Dkernel ∈ (:k, :kspace, :i, :ispace) ||
-        throw(ArgumentError("Dkernel must be one of :k, :kspace, :i, :ispace, got :$(Dkernel)"))
+    checkopts(Dkernel, (:k, :kspace, :i, :ispace), :Dkernel)
 
     # convert scalars
-    _zero = zero(T)
-    _one = one(T)
+    zeroT = zero(T)
+    oneT = one(T)
 
     ρ = convert(T, rho)
     μ = convert(T, mu)
@@ -201,7 +200,7 @@ function _nltv!(
     D = _dipole_kernel!(D, F̂, xp, sz0, vsz, bdir, P, Dkernel, :rfft)
     L = _laplace_kernel!(L, F̂, xp, vsz, P, negative=true)
 
-    @inbounds for t in axes(f, 4)
+    for t in axes(f, 4)
         if verbose && size(f, 4) > 1
             @printf("Echo: %d/%d\n", t, size(f, 4))
         end
@@ -211,7 +210,7 @@ function _nltv!(
         # iA = (μ*D^H*D - ρ*Δ)^-1
         @batch for I in eachindex(iA)
             a = μ*conj(D[I])*D[I] + ρ*L[I]
-            iA[I] = ifelse(iszero(a), _zero, inv(a))
+            iA[I] = ifelse(iszero(a), zeroT, inv(a))
         end
 
         F̂ = tfill!(F̂, 0)
@@ -234,9 +233,9 @@ function _nltv!(
             end
         end
 
-        ux = tfill!(ux, _zero)
-        uy = tfill!(uy, _zero)
-        uz = tfill!(uz, _zero)
+        ux = tfill!(ux, zeroT)
+        uy = tfill!(uy, zeroT)
+        uz = tfill!(uz, zeroT)
         dx, dy, dz = _gradfp!(dx, dy, dz, fp, vsz)
 
         if verbose
@@ -297,7 +296,7 @@ function _nltv!(
                 @batch for I in eachindex(ux)
                     λiρ = λiρWx[I]
                     u = ux[I] + dx[I]
-                    z = ifelse(abs(u) ≤ λiρ, _zero, copysign(abs(u)-λiρ, u))
+                    z = ifelse(abs(u) ≤ λiρ, zeroT, copysign(abs(u)-λiρ, u))
                     ux[I] = u - z
                     dx[I] = z - u + z
                 end
@@ -305,7 +304,7 @@ function _nltv!(
                 @batch for I in eachindex(uy)
                     λiρ = λiρWy[I]
                     u = uy[I] + dy[I]
-                    z = ifelse(abs(u) ≤ λiρ, _zero, copysign(abs(u)-λiρ, u))
+                    z = ifelse(abs(u) ≤ λiρ, zeroT, copysign(abs(u)-λiρ, u))
                     uy[I] = u - z
                     dy[I] = z - u + z
                 end
@@ -313,7 +312,7 @@ function _nltv!(
                 @batch for I in eachindex(uz)
                     λiρ = λiρWz[I]
                     u = uz[I] + dz[I]
-                    z = ifelse(abs(u) ≤ λiρ, _zero, copysign(abs(u)-λiρ, u))
+                    z = ifelse(abs(u) ≤ λiρ, zeroT, copysign(abs(u)-λiρ, u))
                     uz[I] = u - z
                     dz[I] = z - u + z
                 end
@@ -321,21 +320,21 @@ function _nltv!(
             else
                 @batch for I in eachindex(ux)
                     u = ux[I] + dx[I]
-                    z = ifelse(abs(u) ≤ λiρ, _zero, copysign(abs(u)-λiρ, u))
+                    z = ifelse(abs(u) ≤ λiρ, zeroT, copysign(abs(u)-λiρ, u))
                     ux[I] = u - z
                     dx[I] = z - u + z
                 end
 
                 @batch for I in eachindex(uy)
                     u = uy[I] + dy[I]
-                    z = ifelse(abs(u) ≤ λiρ, _zero, copysign(abs(u)-λiρ, u))
+                    z = ifelse(abs(u) ≤ λiρ, zeroT, copysign(abs(u)-λiρ, u))
                     uy[I] = u - z
                     dy[I] = z - u + z
                 end
 
                 @batch for I in eachindex(uz)
                     u = uz[I] + dz[I]
-                    z = ifelse(abs(u) ≤ λiρ, _zero, copysign(abs(u)-λiρ, u))
+                    z = ifelse(abs(u) ≤ λiρ, zeroT, copysign(abs(u)-λiρ, u))
                     uz[I] = u - z
                     dz[I] = z - u + z
                 end
@@ -368,7 +367,7 @@ function _nltv!(
                         φ = fp[I]
 
                         s, c = sincos_fast(z - φ)
-                        δ = (muladd(w, s, z) - u) / muladd(w, c, _one)
+                        δ = (muladd(w, s, z) - u) / muladd(w, c, oneT)
 
                         ze[I] = z - δ
                         threadlocal[1] = muladd(δ, δ, threadlocal[1])

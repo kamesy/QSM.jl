@@ -48,10 +48,9 @@ function unwrap_laplacian(
     solver::Symbol = :mgpcg
 ) where {T<:AbstractFloat, N}
     N ∈ (3, 4) || throw(ArgumentError("arrays must be 3d or 4d, got $(N)d"))
-    checkshape(axes(mask), axes(phas)[1:3], (:mask, :phas))
 
-    solver ∈ (:dct, :fft, :mgpcg) ||
-        throw(ArgumentError("solver must be one of :dct, :fft, :mgpcg"))
+    checkshape(axes(mask), axes(phas)[1:3], (:mask, :phas))
+    checkopts(solver, (:dct, :fft, :mgpcg), :solver)
 
     d2uphas = wrapped_laplacian(phas, vsz)
 
@@ -78,7 +77,7 @@ function unwrap_laplacian(
         )
 
         # set boundaries
-        @inbounds for t in axes(d2uphas, 4)
+        for t in axes(d2uphas, 4)
             d2ut = @view(d2uphas[:,:,:,t])
             @batch for I in eachindex(d2ut, mask)
                 d2ut[I] *= mask[I]
@@ -113,7 +112,7 @@ function wrapped_laplacian!(
     tsz = padded_tilesize(T, (2, 2, 2), 1)
     R = vec(collect(TileIterator((2:nx-1, 2:ny-1, 2:nz-1), tsz)))
 
-    @inbounds @batch per=thread for (I, J, K) in R
+    @batch per=thread for (I, J, K) in R
         for k in K
             for j in J
                 for i in I
@@ -145,20 +144,20 @@ function wrapped_laplacian!(
     tsz = padded_tilesize(T, (2, 2, 2), 1)
     R = vec(collect(TileIterator((2:nx-1, 2:ny-1, 2:nz-1), tsz)))
 
-    @inbounds for t in axes(u, 4)
-        _u = @view(u[:,:,:,t])
-        _d2u = @view(d2u[:,:,:,t])
+    for t in axes(u, 4)
+        ut = @view(u[:,:,:,t])
+        d2ut = @view(d2u[:,:,:,t])
         @batch per=thread for (I, J, K) in R
             for k in K
                 for j in J
                     for i in I
-                        Δ =        -dz2 *_wrap(_u[i,j,k] - _u[i,j,k-1])
-                        Δ = muladd(-dy2, _wrap(_u[i,j,k] - _u[i,j-1,k]), Δ)
-                        Δ = muladd(-dx2, _wrap(_u[i,j,k] - _u[i-1,j,k]), Δ)
-                        Δ = muladd( dx2, _wrap(_u[i+1,j,k] - _u[i,j,k]), Δ)
-                        Δ = muladd( dy2, _wrap(_u[i,j+1,k] - _u[i,j,k]), Δ)
-                        Δ = muladd( dz2, _wrap(_u[i,j,k+1] - _u[i,j,k]), Δ)
-                        _d2u[i,j,k] = Δ
+                        Δ =        -dz2 *_wrap(ut[i,j,k] - ut[i,j,k-1])
+                        Δ = muladd(-dy2, _wrap(ut[i,j,k] - ut[i,j-1,k]), Δ)
+                        Δ = muladd(-dx2, _wrap(ut[i,j,k] - ut[i-1,j,k]), Δ)
+                        Δ = muladd( dx2, _wrap(ut[i+1,j,k] - ut[i,j,k]), Δ)
+                        Δ = muladd( dy2, _wrap(ut[i,j+1,k] - ut[i,j,k]), Δ)
+                        Δ = muladd( dz2, _wrap(ut[i,j,k+1] - ut[i,j,k]), Δ)
+                        d2ut[i,j,k] = Δ
                     end
                 end
             end
@@ -179,6 +178,7 @@ function wrapped_laplacian_boundary_neumann!(
     dx::NTuple{3, Real}
 ) where {T<:AbstractFloat, N}
     N ∈ (3, 4) || throw(ArgumentError("arrays must be 3d or 4d, got $(N)d"))
+
     checkshape(d2u, u, (:d2u, :u))
 
     zeroT = zero(T)
@@ -187,37 +187,37 @@ function wrapped_laplacian_boundary_neumann!(
 
     R = edge_indices(axes(u)[1:3])
 
-    @inbounds for t in axes(u, 4)
-        _u = @view(u[:,:,:,t])
-        _d2u = @view(d2u[:,:,:,t])
+    for t in axes(u, 4)
+        ut = @view(u[:,:,:,t])
+        d2ut = @view(d2u[:,:,:,t])
         @batch per=thread for (i, j, k) in R
             Δ = zeroT
 
             if k > 1
-                Δ = muladd(-dz2, _wrap(_u[i,j,k] - _u[i,j,k-1]), Δ)
+                Δ = muladd(-dz2, _wrap(ut[i,j,k] - ut[i,j,k-1]), Δ)
             end
 
             if j > 1
-                Δ = muladd(-dy2, _wrap(_u[i,j,k] - _u[i,j-1,k]), Δ)
+                Δ = muladd(-dy2, _wrap(ut[i,j,k] - ut[i,j-1,k]), Δ)
             end
 
             if i > 1
-                Δ = muladd(-dx2, _wrap(_u[i,j,k] - _u[i-1,j,k]), Δ)
+                Δ = muladd(-dx2, _wrap(ut[i,j,k] - ut[i-1,j,k]), Δ)
             end
 
             if i < nx
-                Δ = muladd( dx2, _wrap(_u[i+1,j,k] - _u[i,j,k]), Δ)
+                Δ = muladd( dx2, _wrap(ut[i+1,j,k] - ut[i,j,k]), Δ)
             end
 
             if j < ny
-                Δ = muladd( dy2, _wrap(_u[i,j+1,k] - _u[i,j,k]), Δ)
+                Δ = muladd( dy2, _wrap(ut[i,j+1,k] - ut[i,j,k]), Δ)
             end
 
             if k < nz
-                Δ = muladd( dz2, _wrap(_u[i,j,k+1] - _u[i,j,k]), Δ)
+                Δ = muladd( dz2, _wrap(ut[i,j,k+1] - ut[i,j,k]), Δ)
             end
 
-            _d2u[i,j,k] = Δ
+            d2ut[i,j,k] = Δ
         end
     end
 
@@ -231,6 +231,7 @@ function wrapped_laplacian_boundary_periodic!(
     dx::NTuple{3, Real}
 ) where {T<:AbstractFloat, N}
     N ∈ (3, 4) || throw(ArgumentError("arrays must be 3d or 4d, got $(N)d"))
+
     checkshape(d2u, u, (:d2u, :u))
 
     nx, ny, nz = size(u)[1:3]
@@ -238,29 +239,29 @@ function wrapped_laplacian_boundary_periodic!(
 
     R = edge_indices(axes(u)[1:3])
 
-    @inbounds for t in axes(u, 4)
-        _u = @view(u[:,:,:,t])
-        _d2u = @view(d2u[:,:,:,t])
+    for t in axes(u, 4)
+        ut = @view(u[:,:,:,t])
+        d2ut = @view(d2u[:,:,:,t])
         @batch per=thread for (i, j, k) in R
-            v = k == 1 ? _u[i,j,end] : _u[i,j,k-1]
-            Δ = -dz2 * _wrap(_u[i,j,k] - v)
+            v = k == 1 ? ut[i,j,end] : ut[i,j,k-1]
+            Δ = -dz2 * _wrap(ut[i,j,k] - v)
 
-            v = j == 1 ? _u[i,end,k] : _u[i,j-1,k]
-            Δ = muladd(-dy2, _wrap(_u[i,j,k] - v), Δ)
+            v = j == 1 ? ut[i,end,k] : ut[i,j-1,k]
+            Δ = muladd(-dy2, _wrap(ut[i,j,k] - v), Δ)
 
-            v = i == 1 ? _u[end,j,k] : _u[i-1,j,k]
-            Δ = muladd(-dx2, _wrap(_u[i,j,k] - v), Δ)
+            v = i == 1 ? ut[end,j,k] : ut[i-1,j,k]
+            Δ = muladd(-dx2, _wrap(ut[i,j,k] - v), Δ)
 
-            v = i == nx ? _u[1,j,k] : _u[i+1,j,k]
-            Δ = muladd(dx2, _wrap(v - _u[i,j,k]), Δ)
+            v = i == nx ? ut[1,j,k] : ut[i+1,j,k]
+            Δ = muladd(dx2, _wrap(v - ut[i,j,k]), Δ)
 
-            v = j == ny ? _u[i,1,k] : _u[i,j+1,k]
-            Δ = muladd(dy2, _wrap(v - _u[i,j,k]), Δ)
+            v = j == ny ? ut[i,1,k] : ut[i,j+1,k]
+            Δ = muladd(dy2, _wrap(v - ut[i,j,k]), Δ)
 
-            v = k == nz ? _u[i,j,1] : _u[i,j,k+1]
-            Δ = muladd(dz2, _wrap(v - _u[i,j,k]), Δ)
+            v = k == nz ? ut[i,j,1] : ut[i,j,k+1]
+            Δ = muladd(dz2, _wrap(v - ut[i,j,k]), Δ)
 
-            _d2u[i,j,k] = Δ
+            d2ut[i,j,k] = Δ
         end
     end
 

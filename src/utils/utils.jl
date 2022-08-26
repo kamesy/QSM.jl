@@ -163,15 +163,7 @@ function padarray!(
         pad == :replicate ? getindex_replicate :
         pad == :symmetric ? getindex_symmetric :
         pad == :reflect   ? getindex_reflect :
-        throw(ArgumentError(
-            "pad must be one of " *
-            ":fill, "      *
-            ":circular, "  *
-            ":replicate, " *
-            ":symmetric, " *
-            ":reflect, "   *
-            "got :$(pad)"
-        ))
+        checkopts(pad, (:fill, :circular, :replicate, :symmetric, :reflect), :pad)
 
     return _padarray_kernel!(xp, x, getindex_pad)
 end
@@ -186,9 +178,9 @@ function _padarray_kernel!(xp::AbstractArray, x::AbstractArray, getindex_pad)
     @batch for Ip in CartesianIndices(xp)
         I = Ip - ΔI
         if any(map(∉, I.I, ax))
-            @inbounds xp[Ip] = getindex_pad(x, I, lo, hi)
+            xp[Ip] = getindex_pad(x, I, lo, hi)
         else
-            @inbounds xp[Ip] = x[I]
+            xp[Ip] = x[I]
         end
     end
 
@@ -399,7 +391,7 @@ function erode_mask!(
         @batch for k in 1+t:nz-t
             for j in 1+t:ny-t
                 for i in 1+t:nx-t
-                    @inbounds m1[i,j,k] = __erode_kernel(m0, i, j, k)
+                    m1[i,j,k] = __erode_kernel(m0, i, j, k)
                 end
             end
         end
@@ -469,7 +461,7 @@ function psf2otf(
     else
         _kp = tfill!(similar(k, sz), zero(T))
         @batch minbatch=1024 for I in CartesianIndices(k)
-            @inbounds _kp[I] = k[I]
+            _kp[I] = k[I]
         end
     end
 
@@ -725,6 +717,26 @@ function checkshape(
     if !checkshape(Bool, a, b)
         na, nb = vars
         throw(DimensionMismatch("shape must match: $na has dims $a, $nb has dims $b"))
+    end
+    return nothing
+end
+
+
+checkopts(::Type{Bool}, o::T, opts::NTuple{N, T}) where {N, T} = o ∈ opts
+
+function checkopts(
+    o::T,
+    opts::NTuple{N, T},
+    var::Union{Symbol, AbstractString} = :x
+) where {N, T}
+    if !checkopts(Bool, o, opts)
+        pp = map((o, opts...)) do x
+            x isa Symbol ? ":$x" :
+            x isa AbstractString ? "\"$x\"" : "$x"
+        end
+        s1 = first(pp)
+        s2 = join(Base.tail(pp), ", ", " ")
+        throw(ArgumentError("$var must be one of $s2, got $s1"))
     end
     return nothing
 end

@@ -64,7 +64,7 @@ function _gradfp!(
     hy = convert(Tdy, inv(h[2]))
     hz = convert(Tdz, inv(h[3]))
 
-    @inbounds @batch for k in 1:nz-1
+    @batch for k in 1:nz-1
         for j in 1:ny-1
             for i in 1:nx-1
                 dx[i,j,k] = hx*(u[i+1,j,k] - u[i,j,k])
@@ -88,7 +88,7 @@ function _gradfp!(
         dz[nx,ny,k] = hz*(u[nx,ny,k+1] - u[nx,ny,k])
     end
 
-    @inbounds @batch for j in 1:ny-1
+    @batch for j in 1:ny-1
         for i in 1:nx-1
             dz[i,j,nz] = hz*(u[i,j,1] - u[i,j,nz])
             dx[i,j,nz] = hx*(u[i+1,j,nz] - u[i,j,nz])
@@ -100,17 +100,15 @@ function _gradfp!(
         dy[nx,j,nz] = hy*(u[nx,j+1,nz] - u[nx,j,nz])
     end
 
-    @inbounds @batch for i in 1:nx-1
+    @batch for i in 1:nx-1
         dz[i,ny,nz] = hz*(u[i,ny,1] - u[i,ny,nz])
         dy[i,ny,nz] = hy*(u[i,1,nz] - u[i,ny,nz])
         dx[i,ny,nz] = hx*(u[i+1,ny,nz] - u[i,ny,nz])
     end
 
-    @inbounds begin
-        dz[nx,ny,nz] = hz*(u[nx,ny,1] - u[nx,ny,nz])
-        dy[nx,ny,nz] = hy*(u[nx,1,nz] - u[nx,ny,nz])
-        dx[nx,ny,nz] = hx*(u[1,ny,nz] - u[nx,ny,nz])
-    end
+    dz[nx,ny,nz] = hz*(u[nx,ny,1] - u[nx,ny,nz])
+    dy[nx,ny,nz] = hy*(u[nx,1,nz] - u[nx,ny,nz])
+    dx[nx,ny,nz] = hx*(u[1,ny,nz] - u[nx,ny,nz])
 
     return dx, dy, dz
 end
@@ -185,14 +183,12 @@ function _gradfp_adj!(
     hy = convert(Tdy, -inv(h[2]))
     hz = convert(Tdz, -inv(h[3]))
 
-    @inbounds begin
-        d2u[1,1,1] =
-            hx*(dx[1,1,1] - dx[nx,1,1]) +
-            hy*(dy[1,1,1] - dy[1,ny,1]) +
-            hz*(dz[1,1,1] - dz[1,1,nz])
-    end
+    d2u[1,1,1] =
+        hx*(dx[1,1,1] - dx[nx,1,1]) +
+        hy*(dy[1,1,1] - dy[1,ny,1]) +
+        hz*(dz[1,1,1] - dz[1,1,nz])
 
-    @inbounds @batch for i in 2:nx
+    @batch for i in 2:nx
         ux = dx[i,1,1] - dx[i-1,1,1]
         uy = dy[i,1,1] - dy[i,ny,1]
         uz = dz[i,1,1] - dz[i,1,nz]
@@ -203,7 +199,7 @@ function _gradfp_adj!(
         d2u[i,1,1] = u
     end
 
-    @inbounds @batch for j in 2:ny
+    @batch for j in 2:ny
         uy = dy[1,j,1] - dy[1,j-1,1]
         ux = dx[1,j,1] - dx[nx,j,1]
         uz = dz[1,j,1] - dz[1,j,nz]
@@ -225,7 +221,7 @@ function _gradfp_adj!(
         end
     end
 
-    @inbounds @batch for k in 2:nz
+    @batch for k in 2:nz
         uz = dz[1,1,k] - dz[1,1,k-1]
         ux = dx[1,1,k] - dx[nx,1,k]
         uy = dy[1,1,k] - dy[1,ny,k]
@@ -322,17 +318,14 @@ function _lap!(
     u::AbstractArray{T, 3},
     h::NTuple{3, Real},
 ) where {T<:AbstractFloat}
-    idx2 = convert(T, inv(h[1]*h[1]))
-    idy2 = convert(T, inv(h[2]*h[2]))
-    idz2 = convert(T, inv(h[3]*h[3]))
+    idx2, idy2, idz2 = convert.(T, inv.(h.*h))
     D = -2*(idx2 + idy2 + idz2)
 
-    ax = map(a -> first(a)+1:last(a)-1, axes(u))
-
     tsz = padded_tilesize(T, (2, 2, 2), 1)
+    ax = map(a -> first(a)+1:last(a)-1, axes(u))
     R = vec(collect(TileIterator(ax, tsz)))
 
-    @inbounds @batch for (I, J, K) in R
+    @batch for (I, J, K) in R
         for k in K
             for j in J
                 for i in I
@@ -367,17 +360,14 @@ function _lap!(
     u::AbstractArray{T, 4},
     h::NTuple{3, Real},
 ) where {T<:AbstractFloat}
-    idx2 = convert(T, inv(h[1]*h[1]))
-    idy2 = convert(T, inv(h[2]*h[2]))
-    idz2 = convert(T, inv(h[3]*h[3]))
+    idx2, idy2, idz2 = convert.(T, inv.(h.*h))
     D = -2*(idx2 + idy2 + idz2)
 
-    ax = map(a -> first(a)+1:last(a)-1, axes(u)[1:3])
-
     tsz = padded_tilesize(T, (2, 2, 2), 1)
+    ax = map(a -> first(a)+1:last(a)-1, axes(u)[1:3])
     R = vec(collect(TileIterator(ax, tsz)))
 
-    @inbounds for t in axes(u, 4)
+    for t in axes(u, 4)
         ut = @view(u[:,:,:,t])
         d2ut = @view(d2u[:,:,:,t])
         @batch for (I, J, K) in R

@@ -35,10 +35,11 @@ function fit_echo_linear(
     NT > 1 || throw(ArgumentError("data must be multi-echo"))
 
     p = similar(phas, size(phas)[1:N-1])
-    if !phase_offset
-        return fit_echo_linear!(p, phas, W, TEs)
+
+    return if !phase_offset
+        fit_echo_linear!(p, phas, W, TEs)
     else
-        return fit_echo_linear!(p, similar(p), phas, W, TEs)
+        fit_echo_linear!(p, similar(p), phas, W, TEs)
     end
 end
 
@@ -70,8 +71,8 @@ function fit_echo_linear!(
     M > 1 || throw(ArgumentError("array must contain echoes in last dimension"))
     NT > 1 || throw(ArgumentError("data must be multi-echo"))
 
-    size(phas, M) == NT || throw(DimensionMismatch())
-    length(p) == length(phas) ÷ NT || throw(DimensionMismatch())
+    checkshape(axes(p), axes(phas)[1:M-1], (:p, :phas))
+    checkshape((NT,), (size(phas, M),), (:TEs, :phas))
     checkshape(W, phas, (:W, :phas))
 
     vphas = reshape(phas, :, NT)
@@ -81,9 +82,9 @@ function fit_echo_linear!(
     T = promote_type(Tp, Tphas, TW)
     tes = convert.(T, TEs)
 
-    _zeroTp = zero(Tp)
+    zeroTp = zero(Tp)
 
-    @inbounds @batch for I in eachindex(vp)
+    @batch for I in eachindex(vp)
         w = vW[I,1] * vW[I,1] * tes[1]
         den = w * tes[1]
         num = w * vphas[I,1]
@@ -92,7 +93,7 @@ function fit_echo_linear!(
             den = muladd(w, tes[t], den)
             num = muladd(w, vphas[I,t], num)
         end
-        vp[I] = iszero(den) ? _zeroTp : num * inv(den)
+        vp[I] = iszero(den) ? zeroTp : num * inv(den)
     end
 
     return p
@@ -130,9 +131,9 @@ function fit_echo_linear!(
     M > 1 || throw(ArgumentError("array must contain echoes in last dimension"))
     NT > 1 || throw(ArgumentError("data must be multi-echo"))
 
-    size(phas, M) == NT || throw(DimensionMismatch())
-    length(p) == length(phas) ÷ NT || throw(DimensionMismatch())
-    length(p0) == length(phas) ÷ NT || throw(DimensionMismatch())
+    checkshape(axes(p), axes(phas)[1:M-1], (:p, :phas))
+    checkshape(axes(p0), axes(phas)[1:M-1], (:p0, :phas))
+    checkshape((NT,), (size(phas, M),), (:TEs, :phas))
     checkshape(W, phas, (:W, :phas))
 
     vphas = reshape(phas, :, NT)
@@ -143,10 +144,10 @@ function fit_echo_linear!(
     T = promote_type(Tp, Tp0, Tphas, TW)
     tes = convert.(T, TEs)
 
-    _zeroTp = zero(Tp)
-    _zeroTp0 = zero(Tp0)
+    zeroTp = zero(Tp)
+    zeroTp0 = zero(Tp0)
 
-    @inbounds @batch for I in eachindex(vp)
+    @batch for I in eachindex(vp)
         w = vW[I,1]
         x = w * tes[1]
         y = w * vphas[I,1]
@@ -157,8 +158,8 @@ function fit_echo_linear!(
         end
 
         if iszero(w)
-            vp[I] = _zeroTp
-            vp0[I] = _zeroTp0
+            vp[I] = zeroTp
+            vp0[I] = zeroTp0
             continue
         end
 
@@ -183,8 +184,8 @@ function fit_echo_linear!(
             vp[I] = num * inv(den)
             vp0[I] = y - vp[I] * x
         else
-            vp[I] = _zeroTp
-            vp0[I] = _zeroTp0
+            vp[I] = zeroTp
+            vp0[I] = zeroTp0
         end
     end
 

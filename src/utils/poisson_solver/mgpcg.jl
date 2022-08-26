@@ -99,13 +99,13 @@ function _mgpcg!(
     maxit::Integer,
     verbose::Bool
 ) where {T<:AbstractFloat}
-    _zero = zero(T)
+    zeroT = zero(T)
     ρ = one(T)
 
     A = M.grids[1].A
     q = M.workspace.x[1]
     r = M.workspace.b[1]
-    p = tfill!(p, _zero)
+    p = tfill!(p, zeroT)
 
     # q = A * x
     # r -= q
@@ -127,7 +127,7 @@ function _mgpcg!(
 
     for i in 1:maxit
         # q = M\r
-        tfill!(q, _zero, A)
+        tfill!(q, zeroT, A)
         for _ in 1:ncycles
             cycle!(M, cycle)
         end
@@ -165,7 +165,7 @@ end
 
 function _compute_ρ(q::AbstractArray{T}, r, A::Poisson2) where {T}
     # ρ = q⋅r
-    @inbounds @batch threadlocal=zero(T)::T for I in A.RI
+    @batch threadlocal=zero(T)::T for I in A.RI
         threadlocal = muladd(q[I], r[I], threadlocal)
     end
     return sum(threadlocal::Vector{T})
@@ -174,7 +174,7 @@ end
 
 function _compute_p!(p, q, β, A::Poisson2)
     # p = q + β * p
-    @inbounds @batch for I in A.RI
+    @batch for I in A.RI
         p[I] *= β
         p[I] += q[I]
     end
@@ -190,7 +190,7 @@ function _compute_q!(q::AbstractArray{T}, A::Poisson2, p) where {T}
     idy2 = convert(T, A.idx2[2])
     idz2 = convert(T, A.idx2[3])
 
-    @inbounds @batch per=thread threadlocal=zero(T)::T for (I, J, K) in A.R8
+    @batch per=thread threadlocal=zero(T)::T for (I, J, K) in A.R8
         for k in K, j in J, i in I
             z1 = p[i,j,k-1]
             y1 = p[i,j-1,k]
@@ -224,7 +224,7 @@ function _compute_x_r!(x::AbstractArray{T}, r, p, q, α, A::Poisson2) where {T}
     # x = x + α * p
     # r = r - α * q
     # res = norm(r)
-    @inbounds @batch threadlocal=zero(T)::T for I in A.RI
+    @batch threadlocal=zero(T)::T for I in A.RI
         x[I] = muladd( α, p[I], x[I])
         r[I] = muladd(-α, q[I], r[I])
         threadlocal = muladd(r[I], r[I], threadlocal)
@@ -238,7 +238,7 @@ function _init_r!(r::AbstractArray{T}, q, A, x) where {T}
     # r -= q
     # res = norm(r)
     q = mul!(q, A, x)
-    @inbounds @batch threadlocal=zero(T)::T for I in eachindex(r)
+    @batch threadlocal=zero(T)::T for I in eachindex(r)
         r[I] -= q[I]
         threadlocal = muladd(r[I], r[I], threadlocal)
     end

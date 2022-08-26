@@ -85,8 +85,7 @@ function _pdf!(
         checkshape(W, f, (:W, :f))
     end
 
-    Dkernel ∈ (:k, :kspace, :i, :ispace) ||
-        throw(ArgumentError("Dkernel must be one of :k, :kspace, :i, :ispace, got :$(Dkernel)"))
+    checkopts(Dkernel, (:k, :kspace, :i, :ispace), :Dkernel)
 
     # pad to fast fft size
     fp = padfastfft(@view(f[:,:,:,1]), pad, rfft=true)
@@ -126,7 +125,7 @@ function _pdf!(
     D = _dipole_kernel!(D, F̂, b, sz0, vsz, bdir, P, Dkernel, :rfft)
 
     # background mask
-    @inbounds @batch for I in eachindex(m)
+    @batch for I in eachindex(m)
         M̃[I] = !m[I]
     end
 
@@ -138,7 +137,7 @@ function _pdf!(
     elseif ndims(W) == 3
         # same weights for all echoes
         b = padarray!(b, W)
-        @inbounds @batch for I in eachindex(MW)
+        @batch for I in eachindex(MW)
             MW[I] = m[I] * b[I]
         end
 
@@ -147,7 +146,7 @@ function _pdf!(
         # VOID
     end
 
-    @inbounds for t in axes(f, 4)
+    for t in axes(f, 4)
         if verbose && size(f, 4) > 1
             @printf("Echo: %d/%d\n", t, size(f, 4))
         end
@@ -205,17 +204,17 @@ function _A_pdf!(Av, v, W, iP, D, F̂, P, M̃)
     v = reshape(v, size(W))
     x = reshape(Av, size(W))
 
-    @inbounds @batch for I in eachindex(x)
+    @batch for I in eachindex(x)
         x[I] = M̃[I] * v[I]
     end
 
     F̂ = mul!(F̂, P, x)
-    @inbounds @batch for I in eachindex(F̂)
+    @batch for I in eachindex(F̂)
         F̂[I] *= D[I]
     end
 
     x = mul!(x, iP, F̂)
-    @inbounds @batch for I in eachindex(x)
+    @batch for I in eachindex(x)
         x[I] *= W[I]
     end
 
@@ -227,17 +226,17 @@ function _At_pdf!(Atu, u, M̃, iP, D, F̂, P, W)
     u = reshape(u, size(W))
     x = reshape(Atu, size(W))
 
-    @inbounds @batch for I in eachindex(x)
+    @batch for I in eachindex(x)
         x[I] = W[I] * u[I]
     end
 
     F̂ = mul!(F̂, P, x)
-    @inbounds @batch for I in eachindex(F̂)
+    @batch for I in eachindex(F̂)
         F̂[I] *= D[I] # conj(D), D is real
     end
 
     x = mul!(x, iP, F̂)
-    @inbounds @batch for I in eachindex(x)
+    @batch for I in eachindex(x)
         x[I] *= M̃[I]
     end
 

@@ -17,7 +17,7 @@ end
 function restrict!(mc::AbstractArray{Bool, 3}, m::AbstractArray{Bool, 3})
     nxc, nyc, nzc = size(mc)
 
-    @inbounds @batch minbatch=8 for kc in 2:nzc-1
+    @batch minbatch=8 for kc in 2:nzc-1
         k = (kc << 1) - 1
         for jc in 2:nyc-1
             j = (jc << 1) - 1
@@ -51,7 +51,7 @@ function restrict!(
     a2 = convert(T, 2//64)
     a3 = convert(T, 1//64)
 
-    @inbounds @batch minbatch=8 for (Ic, Jc, Kc) in Ac.R27
+    @batch minbatch=8 for (Ic, Jc, Kc) in Ac.R27
         for kc in Kc
             k = (kc << 1) - 1
             for jc in Jc
@@ -134,7 +134,7 @@ function prolong!(
     nxc, nyc, nzc = size(xc)
     m = A.interior
 
-    @inbounds @batch for kc in 1:nzc-1
+    @batch for kc in 1:nzc-1
         k = (kc << 1) - 1
         for jc in 1:nyc-1
             j = (jc << 1) - 1
@@ -209,7 +209,7 @@ function correct_prolong!(
     nxc, nyc, nzc = size(xc)
     m = A.interior
 
-    @inbounds @batch for kc in 1:nzc-1
+    @batch for kc in 1:nzc-1
         k = (kc << 1) - 1
         for jc in 1:nyc-1
             j = (jc << 1) - 1

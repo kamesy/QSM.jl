@@ -365,7 +365,7 @@ end
 @inline function _xpby_norm!(X::Array, b::Real, Y::Array{T}) where {T}
     Tr = real(T)
     bT = convert(Tr, b)
-    @inbounds @batch threadlocal=zero(T)::T for I in eachindex(Y)
+    @batch threadlocal=zero(T)::T for I in eachindex(Y)
         Y[I] = muladd(bT, Y[I], X[I])
         threadlocal = muladd(conj(Y[I]), Y[I], threadlocal)
     end
@@ -381,7 +381,7 @@ end
 
 @inline function _scal!(a, X::Array{T}) where {T}
     aT = convert(real(T), a)
-    @inbounds @batch for I in eachindex(X)
+    @batch for I in eachindex(X)
         X[I] *= aT
     end
     return X
@@ -417,7 +417,7 @@ end
     σ = ζ / (ρ * ρbar)
     ν = -θnew / ρ
 
-    @inbounds @batch threadlocal=zero(T)::T for I in eachindex(x)
+    @batch threadlocal=zero(T)::T for I in eachindex(x)
         h̄[I] = muladd(δ, h̄[I], h[I])
         x[I] = muladd(σ, h̄[I], x[I])
         h[I] = muladd(ν, h[I], v[I])

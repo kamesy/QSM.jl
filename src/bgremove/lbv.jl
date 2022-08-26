@@ -118,7 +118,7 @@ function _lbv!(
     end
 
     # set boundaries
-    @inbounds for t in axes(f, 4)
+    for t in axes(f, 4)
         fct = @view(f[Rc,t])
         @batch for I in eachindex(fct, mc)
             fct[I] *= mc[I]

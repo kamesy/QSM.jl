@@ -38,7 +38,7 @@ function r2star_ll(
         b = tmap(log, transpose(vmag))
         x̂ = ldiv!(A, b)
         @batch for I in eachindex(vr2s)
-            @inbounds vr2s[I] = x̂[1,I]
+            vr2s[I] = x̂[1,I]
         end
 
     else
@@ -55,14 +55,14 @@ function r2star_ll(
             bt = @view(b[t,:])
             mt = @view(vmag[:,t])
             @batch for I in eachindex(R)
-                @inbounds bt[I] = log(mt[R[I]])
+                bt[I] = log(mt[R[I]])
             end
         end
 
         x̂ = ldiv!(A, b)
 
         @batch for I in eachindex(R)
-            @inbounds vr2s[R[I]] = x̂[1,I]
+            vr2s[R[I]] = x̂[1,I]
         end
     end
 
@@ -120,7 +120,7 @@ function r2star_arlo(
     α = convert(T, 3 / (TEs[2]-TEs[1]))
 
     @batch for I in eachindex(vr2s)
-        @inbounds if mask === nothing || mask[I]
+        if mask === nothing || mask[I]
             m0 = vmag[I,1]
             m1 = vmag[I,2]
             m2 = vmag[I,3]
@@ -227,7 +227,7 @@ function r2star_crsi(
     @batch for I in eachindex(vr2s)
         if mask === nothing || mask[I]
             den = β
-            @inbounds for t in 1:NT-1
+            for t in 1:NT-1
                 p0 = vP[I,t]
                 p1 = vP[I,t+1]
                 p = pow(p0, γ0[1]) * pow(p1, γ1[1])
@@ -321,7 +321,7 @@ function r2star_numart2s(
     α = convert(T, 2*(NT - 1) / (TEs[end] - TEs[1]))
 
     @batch for I in eachindex(vr2s)
-        @inbounds if mask === nothing || mask[I]
+        if mask === nothing || mask[I]
             den = vmag[I,1]
             for t in 2:NT-1
                 den += vmag[I,t] + vmag[I,t]

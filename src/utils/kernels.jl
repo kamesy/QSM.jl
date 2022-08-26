@@ -59,16 +59,13 @@ function dipole_kernel(
     transform::Union{Nothing, Symbol} = nothing,
     shift::Bool = false
 ) where {T<:AbstractFloat}
-    !any(<=(0), sz)     || throw(ArgumentError("invalid array size"))
-    !any(<=(0), vsz)    || throw(DomainError(vsz, "vsz must be > 0"))
-    !iszero(norm(bdir)) || throw(DomainError(bdir, "norm of bdir must not be zero"))
-    !any(<(0), dsz)     || throw(DomainError(dsz, "dsz must be ≥ 0"))
+    all(>(0), sz)  || throw(ArgumentError("invalid array size"))
+    all(>(0), vsz) || throw(DomainError(vsz, "vsz must be > 0"))
+    all(>(0), dsz) || throw(DomainError(dsz, "dsz must be > 0"))
+    norm(bdir) > 0 || throw(DomainError(bdir, "bdir must not be zero"))
 
-    method ∈ (:k, :kspace, :i, :ispace) ||
-        throw(ArgumentError("method must be one of :k, :kspace, :i, :ispace, got :$(method)"))
-
-    transform === nothing || transform ∈ (:fft, :rfft) ||
-        throw(ArgumentError("transform must be one of nothing, :rfft, :fft, got :$(transform)"))
+    checkopts(Dkernel, (:k, :kspace, :i, :ispace), :Dkernel)
+    transform !== nothing && checkopts(transform, (:fft, :rfft), :transform)
 
     if method == :k || method == :kspace
         D = Array{T, 3}(undef, transform == :rfft ? (sz[1]>>1 + 1, sz[2], sz[3]) : sz)
@@ -178,7 +175,7 @@ function _dipole_kernel!(
         X, Y, Z = _grid(sz, dx, fft=true, shift=shift)
         a = 1 / 3
 
-        @inbounds @batch for k in 1:nz
+        @batch for k in 1:nz
             for j in 1:ny
                 for i in 1:nx
                     k̂ = SVector{3, Float64}(X[i], Y[j], Z[k])
@@ -201,10 +198,10 @@ function _dipole_kernel!(
         X, Y, Z = _grid(size(D), dx, shift=shift)
         a = prod(dx) * inv(4*pi)
 
-        @inbounds @batch for k in 1:nz
+        @batch for k in 1:nz
             z = Z[k]
             zout = z < Z1 || z > Z2
-            @fastpow for j in 1:ny
+            for j in 1:ny
                 y = Y[j]
                 zyout = zout || y < Y1 || y > Y2
                 for i in 1:nx
@@ -217,7 +214,7 @@ function _dipole_kernel!(
                         r = SVector{3, Float64}(x, y, z)
                         rz = r⋅B
                         r2 = r⋅r
-                        D[i,j,k] = a * (3*rz^2-r2)/sqrt(r2^5)
+                        @fastpow D[i,j,k] = a * (3*rz^2-r2)/sqrt(r2^5)
                     end
                 end
             end
@@ -277,12 +274,9 @@ function smv_kernel(
     transform::Union{Nothing, Symbol} = nothing,
     shift::Bool = false
 ) where {T<:AbstractFloat}
-    !any(<=(0), sz)  || throw(ArgumentError("invalid array size"))
-    !any(<=(0), vsz) || throw(DomainError(vsz, "vsz must be > 0"))
-    r >= 0           || throw(DomainError(r, "r must be ≥ 0"))
-
-    transform === nothing || transform ∈ (:fft, :rfft) ||
-        throw(ArgumentError("transform must be one of nothing, :rfft, :fft, got :$(transform)"))
+    all(>(0), sz)  || throw(ArgumentError("invalid array size"))
+    all(>(0), vsz) || throw(DomainError(vsz, "vsz must be > 0"))
+    transform !== nothing && checkopts(transform, (:fft, :rfft), :transform)
 
     if transform === nothing
         s = Array{T, 3}(undef, sz)
@@ -379,14 +373,14 @@ function _sphere!(
 
     X, Y, Z = _grid(sz, dx, shift=shift)
 
-    _zero = zero(T)
-    _one = one(T)
+    zeroT = zero(T)
+    oneT = one(T)
 
     @inbounds for k in 1:nz
         for j in 1:ny
             for i in 1:nx
                 R = SVector{3, Float64}(X[i], Y[j], Z[k])
-                s[i,j,k] = ifelse(R⋅R <= r2, _one, _zero)
+                s[i,j,k] = ifelse(R⋅R <= r2, oneT, zeroT)
             end
         end
     end
@@ -454,11 +448,9 @@ function laplace_kernel(
     transform::Union{Nothing, Symbol} = nothing,
     shift::Bool = false
 ) where {T<:AbstractFloat}
-    !any(<=(0), sz)  || throw(ArgumentError("invalid array size"))
-    !any(<=(0), vsz) || throw(DomainError(vsz, "vsz must be > 0"))
-
-    transform === nothing || transform ∈ (:fft, :rfft) ||
-        throw(ArgumentError("transform must be one of nothing, :rfft, :fft, got :$(transform)"))
+    all(>(0), sz)  || throw(ArgumentError("invalid array size"))
+    all(>(0), vsz) || throw(DomainError(vsz, "vsz must be > 0"))
+    transform !== nothing && checkopts(transform, (:fft, :rfft), :transform)
 
     if transform === nothing
         Δ = Array{T, 3}(undef, sz)
