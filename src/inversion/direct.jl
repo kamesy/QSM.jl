@@ -205,14 +205,10 @@ function _kdiv!(
         fp = padarray!(fp, @view(f[:,:,:,t]))
 
         F̂ = mul!(F̂, P, fp)
-        @batch for I in eachindex(F̂)
-            F̂[I] *= iD[I]
-        end
+        @bfor F̂[I] *= iD[I]
 
         fp = mul!(fp, iP, F̂)
-        @batch for I in eachindex(fp)
-            fp[I] *= m[I]
-        end
+        @bfor fp[I] *= m[I]
 
         unpadarray!(@view(x[:,:,:,t]), fp)
     end
@@ -236,18 +232,13 @@ function _kdiv_ikernel!(
         δ = convert(T, lambda)
         iδ = inv(δ)
 
-        @batch for I in eachindex(D)
-            D[I] = ifelse(abs(D[I]) ≤ δ, copysign(iδ, D[I]), inv(D[I]))
-        end
+        @bfor D[I] = ifelse(abs(D[I]) ≤ δ, copysign(iδ, D[I]), inv(D[I]))
 
     elseif method == :tsvd
         δ = convert(T, lambda)
         zeroT = zero(T)
 
-        @batch for I in eachindex(D)
-            D[I] = ifelse(abs(D[I]) ≤ δ, zeroT, inv(D[I]))
-        end
-
+        @bfor D[I] = ifelse(abs(D[I]) ≤ δ, zeroT, inv(D[I]))
 
     elseif method == :tikh
         λ = convert(T, lambda)
@@ -266,9 +257,7 @@ function _kdiv_ikernel!(
             Γ = tmap!(abs2, Γ)
         end
 
-        @batch for I in eachindex(D)
-            D[I] = ifelse(iszero(D[I]) && iszero(Γ[I]), zeroT, inv(D[I]*D[I] + λ*Γ[I])*D[I])
-        end
+        @bfor D[I] = ifelse(iszero(D[I]) && iszero(Γ[I]), zeroT, inv(D[I]*D[I] + λ*Γ[I])*D[I])
 
     end
 

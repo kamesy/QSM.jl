@@ -202,14 +202,14 @@ function _tv!(
             # fw  = iAw * W^t * f
             F̂ = tfill!(F̂, 0)
 
-            @batch for I in eachindex(iA)
-                a = μ*conj(D[I])*D[I] + ρ*L[I]
+            @bfor begin
+                a = muladd(μ, conj(D[I])*D[I], ρ*L[I])
                 iA[I] = ifelse(iszero(a), zeroT, inv(a))
             end
 
             fw = padarray!(fw, @view(W[:,:,:,min(t, end)]))
 
-            @batch for I in eachindex(fw)
+            @bfor begin
                 w = fw[I]
                 ia = inv(muladd(w, w, μ))
                 iAw[I] = μ*ia
@@ -221,7 +221,7 @@ function _tv!(
             # F̂  = iA * D^H*f
             X̂ = mul!(X̂, P, xp)
 
-            @batch for I in eachindex(F̂)
+            @bfor begin
                 a = conj(D[I])*D[I] + ρ*L[I]
                 if iszero(a)
                     F̂[I] = zeroT
@@ -264,11 +264,7 @@ function _tv!(
             xp = _gradfp_adj!(xp, dx, dy, dz, vsz)
 
             X̂ = mul!(X̂, P, xp)
-
-            @batch for I in eachindex(X̂)
-                X̂[I] *= ρ*iA[I]
-                X̂[I] += F̂[I]
-            end
+            @bfor X̂[I] = muladd(ρ*iA[I], X̂[I], F̂[I])
 
             if W !== nothing
                 F̂ = tcopyto!(F̂, X̂) # real ifft overwrites input
@@ -305,7 +301,7 @@ function _tv!(
             # u = u + ∇x - z            Lagrange multiplier update
             # d = z - u                 pre-compute for x-problem
             if Wtv !== nothing
-                @batch for I in eachindex(ux)
+                @bfor begin
                     λiρ = λiρWx[I]
                     u = ux[I] + dx[I]
                     z = ifelse(abs(u) ≤ λiρ, zeroT, copysign(abs(u)-λiρ, u))
@@ -313,7 +309,7 @@ function _tv!(
                     dx[I] = z - u + z
                 end
 
-                @batch for I in eachindex(uy)
+                @bfor begin
                     λiρ = λiρWy[I]
                     u = uy[I] + dy[I]
                     z = ifelse(abs(u) ≤ λiρ, zeroT, copysign(abs(u)-λiρ, u))
@@ -321,7 +317,7 @@ function _tv!(
                     dy[I] = z - u + z
                 end
 
-                @batch for I in eachindex(uz)
+                @bfor begin
                     λiρ = λiρWz[I]
                     u = uz[I] + dz[I]
                     z = ifelse(abs(u) ≤ λiρ, zeroT, copysign(abs(u)-λiρ, u))
@@ -330,21 +326,21 @@ function _tv!(
                 end
 
             else
-                @batch for I in eachindex(ux)
+                @bfor begin
                     u = ux[I] + dx[I]
                     z = ifelse(abs(u) ≤ λiρ, zeroT, copysign(abs(u)-λiρ, u))
                     ux[I] = u - z
                     dx[I] = z - u + z
                 end
 
-                @batch for I in eachindex(uy)
+                @bfor begin
                     u = uy[I] + dy[I]
                     z = ifelse(abs(u) ≤ λiρ, zeroT, copysign(abs(u)-λiρ, u))
                     uy[I] = u - z
                     dy[I] = z - u + z
                 end
 
-                @batch for I in eachindex(uz)
+                @bfor begin
                     u = uz[I] + dz[I]
                     z = ifelse(abs(u) ≤ λiρ, zeroT, copysign(abs(u)-λiρ, u))
                     uz[I] = u - z
@@ -359,12 +355,10 @@ function _tv!(
                 # F̂ = μ*D^H*(z - u) / (μ*D^H*D - ρ*Δ)
                 # z = (W*f + μ*(D*x + u)) / (W^t*W + μ)
                 # u = u + D*x - z
-                @batch for I in eachindex(F̂)
-                    F̂[I] *= D[I]
-                end
+                @bfor F̂[I] *= D[I]
 
                 x0 = mul!(x0, iP, F̂)
-                @batch for I in eachindex(x0)
+                @bfor begin
                     u = x0[I] + uw[I]
                     z = fw[I] + iAw[I]*u
                     uw[I] = u - z
@@ -372,9 +366,7 @@ function _tv!(
                 end
 
                 F̂ = mul!(F̂, P, x0)
-                @batch for I in eachindex(F̂)
-                    F̂[I] *= μ*conj(D[I])*iA[I]
-                end
+                @bfor F̂[I] *= μ*conj(D[I])*iA[I]
             end
         end
 

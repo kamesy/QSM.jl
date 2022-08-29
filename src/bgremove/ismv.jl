@@ -95,14 +95,10 @@ function _ismv!(
     m0 = tcopyto!(m0, m)
 
     F̂ = mul!(F̂, P, s)
-    @batch for I in eachindex(F̂)
-        F̂[I] *= S[I]
-    end
+    @bfor F̂[I] *= S[I]
 
     s = mul!(s, iP, F̂)
-    @batch for I in eachindex(m)
-        m[I] = s[I] > δ
-    end
+    @bfor m[I] = s[I] > δ
 
     # iSMV
     for t in axes(f, 4)
@@ -114,16 +110,14 @@ function _ismv!(
             fp = padarray!(fp, @view(f[Rc,t]))
         end
 
-        @batch for I in eachindex(bc)
+        @bfor begin
             bc[I] = (m0[I] - m[I]) * fp[I]
             fb[I] = fp[I]
         end
 
         fb = __ismv!(fb, s, S, bc, m, iP, F̂, P, tol, maxit, verbose)
 
-        @batch for I in eachindex(fp)
-            fp[I] = m[I] * (fp[I] - fb[I])
-        end
+        @bfor fp[I] = m[I] * (fp[I] - fb[I])
 
         unpadarray!(@view(fl[Rc,t]), fp)
     end
@@ -135,9 +129,7 @@ end
 
 
 function __ismv!(f::AbstractArray{T}, f0, S, bc, m, iP, F̂, P, tol, maxit, verbose) where {T}
-    @batch for I in eachindex(f0)
-        f0[I] = m[I]*f[I]
-    end
+    @bfor f0[I] = m[I] * f[I]
 
     nr = norm(f0)
     ϵ = tol * nr
@@ -152,9 +144,7 @@ function __ismv!(f::AbstractArray{T}, f0, S, bc, m, iP, F̂, P, tol, maxit, verb
         end
 
         F̂ = mul!(F̂, P, f)
-        @batch for I in eachindex(F̂)
-            F̂[I] *= S[I]
-        end
+        @bfor F̂[I] *= S[I]
 
         f = mul!(f, iP, F̂)
         @batch threadlocal=zero(T)::T for I in eachindex(f)

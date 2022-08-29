@@ -157,9 +157,7 @@ function _rts!(
     L = _laplace_kernel!(L, F̂, xp, vsz, P, negative=true)
 
     # mask of well-conditioned frequencies
-    @batch for I in eachindex(M)
-        M[I] = ifelse(abs(D[I]) > δ, μ, zeroT)
-    end
+    @bfor M[I] = ifelse(abs(D[I]) > δ, μ, zeroT)
 
     for t in axes(f, 4)
         if verbose && size(f, 4) > 1
@@ -175,17 +173,14 @@ function _rts!(
         lsmr!(WS; lambda=zeroT, atol=zeroT, btol=zeroT, maxit=lstol)
 
         xp = mul!(xp, iP, X̂)
-
-        @batch for I in eachindex(xp)
-            xp[I] *= m[I]
-        end
+        @bfor xp[I] *= m[I]
 
         ######################################################################
         # Step 2: Ill-conditioned
         ######################################################################
         X̂ = mul!(X̂, P, xp)
 
-        @batch for I in eachindex(F̂)
+        @bfor begin
             a = muladd(ρ, L[I], M[I])
             if iszero(a)
                 F̂[I] = zeroT
@@ -217,11 +212,7 @@ function _rts!(
             xp = _gradfp_adj!(xp, vx, vy, vz, vsz)
 
             X̂ = mul!(X̂, P, xp)
-            @batch for I in eachindex(X̂)
-                X̂[I] *= iA[I]
-                X̂[I] += F̂[I]
-            end
-
+            @bfor X̂[I] = muladd(iA[I], X̂[I], F̂[I])
             xp = mul!(xp, iP, X̂)
 
             ##################################################################
@@ -253,7 +244,7 @@ function _rts!(
             # p = p + ∇x - y            Lagrange multiplier update
             # v = y - p                 pre-compute for x-problem
             # d = ∇x - y                pre-compute for primal residual
-            @batch for I in eachindex(px)
+            @bfor begin
                 d = dx[I]
                 p = px[I] + d
                 y = ifelse(abs(p) ≤ iρ, zeroT, copysign(abs(p)-iρ, p))
@@ -262,7 +253,7 @@ function _rts!(
                 dx[I] = d - y
             end
 
-            @batch for I in eachindex(py)
+            @bfor begin
                 d = dy[I]
                 p = py[I] + d
                 y = ifelse(abs(p) ≤ iρ, zeroT, copysign(abs(p)-iρ, p))
@@ -271,7 +262,7 @@ function _rts!(
                 dy[I] = d - y
             end
 
-            @batch for I in eachindex(pz)
+            @bfor begin
                 d = dz[I]
                 p = pz[I] + d
                 y = ifelse(abs(p) ≤ iρ, zeroT, copysign(abs(p)-iρ, p))
@@ -297,7 +288,7 @@ function _rts!(
                 iρ = inv(ρ)
 
                 # update constant rhs and ilhs
-                @batch for I in eachindex(iA)
+                @bfor begin
                     iaprev = iA[I]
                     if !iszero(iaprev)
                         ia = inv(muladd(ρ, L[I], M[I]))
@@ -307,17 +298,9 @@ function _rts!(
                 end
 
                 # update scaled dual variables
-                @batch for I in eachindex(px)
-                    px[I] *= iγ
-                end
-
-                @batch for I in eachindex(py)
-                    py[I] *= iγ
-                end
-
-                @batch for I in eachindex(pz)
-                    pz[I] *= iγ
-                end
+                @bfor px[I] *= iγ
+                @bfor py[I] *= iγ
+                @bfor pz[I] *= iγ
             end
         end
 
@@ -334,8 +317,6 @@ end
 
 
 function _A_rts!(Dv, v, D)
-    @batch for I in eachindex(Dv)
-        Dv[I] = D[I]*v[I]
-    end
+    @bfor Dv[I] = D[I] * v[I]
     return Dv
 end

@@ -208,7 +208,7 @@ function _nltv!(
         fp = padarray!(fp, @view(f[:, :, :, t]))
 
         # iA = (μ*D^H*D - ρ*Δ)^-1
-        @batch for I in eachindex(iA)
+        @bfor begin
             a = μ*conj(D[I])*D[I] + ρ*L[I]
             iA[I] = ifelse(iszero(a), zeroT, inv(a))
         end
@@ -217,9 +217,7 @@ function _nltv!(
 
         if W !== nothing
             W2 = padarray!(W2, @view(W[:,:,:,min(t, end)]))
-            @batch for I in eachindex(W2)
-                W2[I] *= iμ*W2[I]
-            end
+            @bfor W2[I] *= iμ*W2[I]
         end
 
         # total variation weights
@@ -252,11 +250,7 @@ function _nltv!(
             xp = _gradfp_adj!(xp, dx, dy, dz, vsz)
 
             X̂ = mul!(X̂, P, xp)
-
-            @batch for I in eachindex(X̂)
-                X̂[I] *= ρ*iA[I]
-                X̂[I] += F̂[I]
-            end
+            @bfor X̂[I] = muladd(ρ*iA[I], X̂[I], F̂[I])
 
             if W !== nothing
                 F̂ = tcopyto!(F̂, X̂) # real ifft overwrites input
@@ -293,7 +287,7 @@ function _nltv!(
             # u = u + ∇x - z            Lagrange multiplier update
             # d = z - u                 pre-compute for x-problem
             if Wtv !== nothing
-                @batch for I in eachindex(ux)
+                @bfor begin
                     λiρ = λiρWx[I]
                     u = ux[I] + dx[I]
                     z = ifelse(abs(u) ≤ λiρ, zeroT, copysign(abs(u)-λiρ, u))
@@ -301,7 +295,7 @@ function _nltv!(
                     dx[I] = z - u + z
                 end
 
-                @batch for I in eachindex(uy)
+                @bfor begin
                     λiρ = λiρWy[I]
                     u = uy[I] + dy[I]
                     z = ifelse(abs(u) ≤ λiρ, zeroT, copysign(abs(u)-λiρ, u))
@@ -309,7 +303,7 @@ function _nltv!(
                     dy[I] = z - u + z
                 end
 
-                @batch for I in eachindex(uz)
+                @bfor begin
                     λiρ = λiρWz[I]
                     u = uz[I] + dz[I]
                     z = ifelse(abs(u) ≤ λiρ, zeroT, copysign(abs(u)-λiρ, u))
@@ -318,21 +312,21 @@ function _nltv!(
                 end
 
             else
-                @batch for I in eachindex(ux)
+                @bfor begin
                     u = ux[I] + dx[I]
                     z = ifelse(abs(u) ≤ λiρ, zeroT, copysign(abs(u)-λiρ, u))
                     ux[I] = u - z
                     dx[I] = z - u + z
                 end
 
-                @batch for I in eachindex(uy)
+                @bfor begin
                     u = uy[I] + dy[I]
                     z = ifelse(abs(u) ≤ λiρ, zeroT, copysign(abs(u)-λiρ, u))
                     uy[I] = u - z
                     dy[I] = z - u + z
                 end
 
-                @batch for I in eachindex(uz)
+                @bfor begin
                     u = uz[I] + dz[I]
                     z = ifelse(abs(u) ≤ λiρ, zeroT, copysign(abs(u)-λiρ, u))
                     uz[I] = u - z
@@ -347,12 +341,10 @@ function _nltv!(
             #     z - (W^2/μ*sin(z-f) + z - (D*x+u)) / (W^2/μ*cos(z-f) + 1)
             # u = u + D*x - z
             # F̂ = μ*D^H*(z - u) / (μ*D^H*D - ρ*Δ)
-            @batch for I in eachindex(F̂)
-                F̂[I] *= D[I]
-            end
+            @bfor F̂[I] *= D[I]
 
             ze = mul!(ze, iP, F̂)
-            @batch for I in eachindex(ze)
+            @bfor begin
                 a = ze[I] + ue[I]
                 ze[I] = a
                 ue[I] = a
@@ -404,7 +396,7 @@ function _nltv!(
                 end
             end
 
-            @batch for I in eachindex(ue)
+            @bfor begin
                 u = ue[I]
                 z = ze[I]
                 ue[I] = u - z
@@ -412,9 +404,7 @@ function _nltv!(
             end
 
             F̂ = mul!(F̂, P, x0)
-            @batch for I in eachindex(F̂)
-                F̂[I] *= μ*conj(D[I])*iA[I]
-            end
+            @bfor F̂[I] *= μ*conj(D[I])*iA[I]
         end
 
         unpadarray!(@view(x[:,:,:,t]), xp)

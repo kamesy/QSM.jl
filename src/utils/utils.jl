@@ -606,6 +606,45 @@ end
 end
 
 
+macro bfor(ex)
+    _bfor(ex)
+end
+
+function _bfor(ex)
+    valid = true
+    vars = Symbol[]
+    ivars = Symbol[]
+
+    postwalk(ex) do x
+        if valid && @capture(x, var_[Is__])
+            valid = length(Is) == 1
+            push!(vars, var)
+            push!(ivars, Is...)
+        end
+        return x
+    end
+
+    vars = unique!(sort!(vars))
+    ivars = unique!(sort!(ivars))
+
+    if isempty(ivars)
+        throw(ArgumentError("loop index not found"))
+    end
+
+    if !valid || length(ivars) > 1
+        throw(ArgumentError("multiple indices not supported"))
+    end
+
+    loop = :(
+        for $(first(ivars)) in eachindex($(vars...))
+            $ex
+        end
+    )
+
+    Polyester.enclose(loop, 0, 1024, :core, (Symbol(""), :Any), Polyester)
+end
+
+
 #####
 ##### Multi-threaded Base utilities
 #####

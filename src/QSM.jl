@@ -8,8 +8,8 @@ using CPUSummary: num_cores
 using FastPow: @fastpow
 using IrrationalConstants: inv2π, twoπ
 using LinearMaps: LinearMap
+using MacroTools: @capture, postwalk
 using NIfTI: NIVolume, niread, niwrite
-using Polyester: @batch
 using PolyesterWeave: reset_workers!
 using Printf: @printf
 using SLEEFPirates: pow, sincos_fast
@@ -20,6 +20,7 @@ using TiledIteration: TileIterator, padded_tilesize
 
 using LinearAlgebra
 using FFTW
+using Polyester
 
 
 export bet

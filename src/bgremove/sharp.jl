@@ -89,15 +89,13 @@ function _sharp!(
     s = tcopyto!(s, m) # in-place type conversion, reuse smv var
 
     F̂ = mul!(F̂, P, s)
-    @batch for I in eachindex(F̂)
+    @bfor begin
         F̂[I] *= S[I]
-        S[I] = oneT - S[I]
+        S[I]  = oneT - S[I]
     end
 
     s = mul!(s, iP, F̂)
-    @batch for I in eachindex(m)
-        m[I] = s[I] > δ
-    end
+    @bfor m[I] = s[I] > δ
 
     # SHARP
     for t in axes(f, 4)
@@ -106,24 +104,16 @@ function _sharp!(
         end
 
         F̂ = mul!(F̂, P, fp)
-        @batch for I in eachindex(F̂)
-            F̂[I] *= S[I]
-        end
+        @bfor F̂[I] *= S[I]
 
         fp = mul!(fp, iP, F̂)
-        @batch for I in eachindex(fp)
-            fp[I] *= m[I]
-        end
+        @bfor fp[I] *= m[I]
 
         F̂ = mul!(F̂, P, fp)
-        @batch for I in eachindex(F̂)
-            F̂[I] = ifelse(abs(S[I]) < thrT, zeroT, F̂[I]*inv(S[I]))
-        end
+        @bfor F̂[I] = ifelse(abs(S[I]) < thrT, zeroT, F̂[I]*inv(S[I]))
 
         fp = mul!(fp, iP, F̂)
-        @batch for I in eachindex(fp)
-            fp[I] *= m[I]
-        end
+        @bfor fp[I] *= m[I]
 
         unpadarray!(@view(fl[Rc,t]), fp)
     end
@@ -240,33 +230,25 @@ function _sharp!(
         S = _smv_kernel!(S, F̂, s, vsz, r, P)
 
         # erode mask
-        @batch for I in eachindex(F̂)
+        @bfor begin
             F̂[I] = S[I] * M̂[I]
             S[I] = oneT - S[I]
         end
 
         s = mul!(s, iP, F̂)
-        @batch for I in eachindex(mr)
-            mr[I] = s[I] > δ
-        end
+        @bfor mr[I] = s[I] > δ
 
         # high-pass filter first (largest) kernel for deconvolution
         if i == 1
-            @batch for I in eachindex(iS)
-                iS[I] = ifelse(abs(S[I]) < thrT, zeroT, inv(S[I]))
-            end
+            @bfor iS[I] = ifelse(abs(S[I]) < thrT, zeroT, inv(S[I]))
         end
 
         # SHARP
-        @batch for I in eachindex(F̂)
-            F̂[I] = S[I] * F̂p[I]
-        end
+        @bfor F̂[I] = S[I] * F̂p[I]
 
         s = mul!(s, iP, F̂)
-        @batch for I in eachindex(fp)
-            if mr[I] && !m[I]
-                fp[I] = s[I]
-            end
+        @bfor if mr[I] && !m[I]
+            fp[I] = s[I]
         end
 
         m, mr = mr, m
@@ -274,14 +256,10 @@ function _sharp!(
 
     # deconvolution + high-pass filter
     F̂p = mul!(F̂p, P, fp)
-    @batch for I in eachindex(F̂p)
-        F̂p[I] *= iS[I]
-    end
+    @bfor F̂p[I] *= iS[I]
 
     fp = mul!(fp, iP, F̂p)
-    @batch for I in eachindex(fp)
-        fp[I] *= m[I]
-    end
+    @bfor fp[I] *= m[I]
 
     unpadarray!(@view(fl[Rc]), fp)
     unpadarray!(@view(smask[Rc]), m)
@@ -352,21 +330,17 @@ function _sharp!(
         S = _smv_kernel!(S, F̂, s, vsz, r, P)
 
         # erode mask
-        @batch for I in eachindex(F̂)
+        @bfor begin
             F̂[I] = S[I] * M̂[I]
             S[I] = oneT - S[I]
         end
 
         s = mul!(s, iP, F̂)
-        @batch for I in eachindex(mr)
-            mr[I] = s[I] > δ
-        end
+        @bfor mr[I] = s[I] > δ
 
         # high-pass filter first (largest) kernel for deconvolution
         if i == 1
-            @batch for I in eachindex(iS)
-                iS[I] = ifelse(abs(S[I]) < thrT, zeroT, inv(S[I]))
-            end
+            @bfor iS[I] = ifelse(abs(S[I]) < thrT, zeroT, inv(S[I]))
         end
 
         # SHARP
@@ -374,15 +348,11 @@ function _sharp!(
             F̂t = @view(F̂p[:,:,:,t])
             ft = @view(fp[:,:,:,t])
 
-            @batch for I in eachindex(F̂)
-                F̂[I] = S[I] * F̂t[I]
-            end
+            @bfor F̂[I] = S[I] * F̂t[I]
 
             s = mul!(s, iP, F̂)
-            @batch for I in eachindex(ft)
-                if mr[I] && !m[I]
-                    ft[I] = s[I]
-                end
+            @bfor if mr[I] && !m[I]
+                ft[I] = s[I]
             end
         end
 
@@ -393,17 +363,13 @@ function _sharp!(
     F̂p = mul!(F̂p, P4, fp)
     for t in axes(F̂p, 4)
         F̂t = @view(F̂p[:,:,:,t])
-        @batch for I in eachindex(F̂t)
-            F̂t[I] *= iS[I]
-        end
+        @bfor F̂t[I] *= iS[I]
     end
 
     fp = mul!(fp, iP4, F̂p)
     for t in axes(fp, 4)
         ft = @view(fp[:,:,:,t])
-        @batch for I in eachindex(ft)
-            ft[I] *= m[I]
-        end
+        @bfor ft[I] *= m[I]
     end
 
     unpadarray!(@view(fl[Rc,:]), fp)

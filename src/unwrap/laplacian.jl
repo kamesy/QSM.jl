@@ -79,9 +79,7 @@ function unwrap_laplacian(
         # set boundaries
         for t in axes(d2uphas, 4)
             d2ut = @view(d2uphas[:,:,:,t])
-            @batch for I in eachindex(d2ut, mask)
-                d2ut[I] *= mask[I]
-            end
+            @bfor d2ut[I] *= mask[I]
         end
 
         uphas = solve_poisson_mgpcg(d2uphas, mask, vsz; opts...)
