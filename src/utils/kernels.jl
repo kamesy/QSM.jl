@@ -64,7 +64,7 @@ function dipole_kernel(
     all(>(0), dsz) || throw(DomainError(dsz, "dsz must be > 0"))
     norm(bdir) > 0 || throw(DomainError(bdir, "bdir must not be zero"))
 
-    checkopts(Dkernel, (:k, :kspace, :i, :ispace), :Dkernel)
+    checkopts(method, (:k, :kspace, :i, :ispace), :method)
     transform !== nothing && checkopts(transform, (:fft, :rfft), :transform)
 
     if method == :k || method == :kspace
