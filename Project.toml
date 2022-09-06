@@ -1,7 +1,7 @@
 name = "QSM"
 uuid = "794fc106-2fa4-440f-961c-0d7d7b47016a"
 authors = ["kamesy <ckames@physics.ubc.ca>"]
-version = "0.4.0"
+version = "0.4.1"
 
 [deps]
 CPUSummary = "2a0fbf3d-bb9c-48f3-b0a9-814d99fd7ab9"
