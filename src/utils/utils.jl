@@ -641,7 +641,7 @@ function _bfor(ex)
         end
     )
 
-    Polyester.enclose(loop, 0, 1024, :core, (Symbol(""), :Any), Polyester)
+    Polyester.enclose(loop, 0, 1, :core, (Symbol(""), :Any), Polyester)
 end
 
 
