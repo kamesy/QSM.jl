@@ -68,7 +68,7 @@ end
 ##### FFTW.jl
 #####
 
-const FFTW_NTHREADS = Ref{Int}(nthreads())
+const FFTW_NTHREADS = Ref{Int}(min(nthreads(), known(num_cores())))
 
 @static if FFTW.fftw_provider == "fftw"
     # modified `FFTW.spawnloop` to use Polyester for multi-threading
