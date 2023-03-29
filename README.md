@@ -27,9 +27,9 @@ B0 = 3          # main magnetic field strength
 # package, e.g. MAT.jl, NIfTI.jl, ParXRec.jl, ...
 mag, phas = ...
 
-vsz = (...,)    # voxel size
-TEs = (...,)    # echo times
 bdir = (...,)   # direction of B-field
+vsz  = (...,)   # voxel size
+TEs  = [...]    # echo times
 
 # extract brain mask from last echo using FSL's bet
 mask0 = bet(@view(mag[:,:,:,end]), vsz, "-m -n -f 0.5")

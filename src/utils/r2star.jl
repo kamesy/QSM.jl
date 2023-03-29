@@ -1,7 +1,7 @@
 """
     function r2star_ll(
         mag::AbstractArray{<:AbstractFloat, N > 1},
-        TEs::NTuple{NT > 1, Real},
+        TEs::AbstractVector{<:Real},
         mask::Union{Nothing, AbstractArray{Bool}} = nothing
     ) -> typeof(similar(mag, size(mag)[1:N-1]))
 
@@ -9,7 +9,7 @@ Log-linear fit.
 
 ### Arguments
 - `mag::AbstractArray{<:AbstractFloat, N > 1}`: multi-echo magnitude
-- `TEs::NTuple{NT > 1, Real}`: echo times
+- `TEs::AbstractVector{<:Real}`: echo times
 - `mask::Union{Nothing, AbstractArray{Bool}} = nothing`: binary mask of region of interest
 
 ### Returns
@@ -17,9 +17,11 @@ Log-linear fit.
 """
 function r2star_ll(
     mag::AbstractArray{T, N},
-    TEs::NTuple{NT, Real},
+    TEs::AbstractVector{<:Real},
     mask::Union{Nothing, AbstractArray{Bool}} = nothing
-) where {T<:AbstractFloat, N, NT}
+) where {T<:AbstractFloat, N}
+    NT = length(TEs)
+
     N > 1 || throw(ArgumentError("array must contain echoes in last dimension"))
     NT > 1 || throw(ArgumentError("data must be multi-echo"))
 
@@ -73,7 +75,7 @@ end
 """
     function r2star_arlo(
         mag::AbstractArray{<:AbstractFloat, N > 1},
-        TEs::NTuple{NT > 1, Real},
+        TEs::AbstractVector{<:Real},
         mask::Union{Nothing, AbstractArray{Bool}} = nothing
     ) -> typeof(similar(mag, size(mag)[1:N-1]))
 
@@ -81,7 +83,7 @@ Auto-Regression on Linear Operations (ARLO) [1].
 
 ### Arguments
 - `mag::AbstractArray{<:AbstractFloat, N > 1}`: multi-echo magnitude
-- `TEs::NTuple{NT > 1, Real}`: echo times
+- `TEs::AbstractVector{<:Real}`: echo times
 - `mask::Union{Nothing, AbstractArray{Bool}} = nothing`: binary mask of region of interest
 
 ### Returns
@@ -95,9 +97,11 @@ Auto-Regression on Linear Operations (ARLO) [1].
 """
 function r2star_arlo(
     mag::AbstractArray{T, N},
-    TEs::NTuple{NT, Real},
+    TEs::AbstractVector{<:Real},
     mask::Union{Nothing, AbstractArray{Bool}} = nothing
-) where {T<:AbstractFloat, N, NT}
+) where {T<:AbstractFloat, N}
+    NT = length(TEs)
+
     N > 1 || throw(ArgumentError("array must contain echoes in last dimension"))
     NT > 2 || throw(ArgumentError("ARLO requires at least 3 echoes"))
 
@@ -156,7 +160,7 @@ end
 """
     function r2star_crsi(
         mag::AbstractArray{<:AbstractFloat, N > 1},
-        TEs::NTuple{NT > 1, Real},
+        TEs::AbstractVector{<:Real},
         mask::Union{Nothing, AbstractArray{Bool}} = nothing;
         M::Integer = 3,
         sigma::Union{Nothing, Real} = nothing,
@@ -167,7 +171,7 @@ Calculation of Relaxivities by Signal Integration (CRSI) [1].
 
 ### Arguments
 - `mag::AbstractArray{<:AbstractFloat, N > 1}`: multi-echo magnitude
-- `TEs::NTuple{NT > 1, Real}`: echo times
+- `TEs::AbstractVector{<:Real}`: echo times
 - `mask::Union{Nothing, AbstractArray{Bool}} = nothing`: binary mask of region of interest
 
 ### Keywords
@@ -189,12 +193,14 @@ Calculation of Relaxivities by Signal Integration (CRSI) [1].
 """
 function r2star_crsi(
     mag::AbstractArray{T, N},
-    TEs::NTuple{NT, Real},
+    TEs::AbstractVector{<:Real},
     mask::Union{Nothing, AbstractArray{Bool}} = nothing;
     M::Integer = 3,
     sigma::Union{Nothing, Real} = nothing,
     Rsz::NTuple{NR, Integer} = size(mag)[1:N-1] .÷ 20,
-) where {T<:AbstractFloat, N, NT, NR}
+) where {T<:AbstractFloat, N, NR}
+    NT = length(TEs)
+
     N > 1 || throw(ArgumentError("array must contain echoes in last dimension"))
     NT > 1 || throw(ArgumentError("data must be multi-echo"))
     M > 0 || throw(ArgumentError("interpolation factor M must be greater than 0"))
@@ -280,7 +286,7 @@ end
 """
     function r2star_numart2s(
         mag::AbstractArray{<:AbstractFloat, N > 1},
-        TEs::NTuple{NT > 1, Real},
+        TEs::AbstractVector{<:Real},
         mask::Union{Nothing, AbstractArray{Bool}} = nothing
     ) -> typeof(similar(mag, size(mag)[1:N-1]))
 
@@ -288,7 +294,7 @@ Numerical Algorithm for Real-time T2* mapping (NumART2*) [1].
 
 ### Arguments
 - `mag::AbstractArray{<:AbstractFloat, N > 1}`: multi-echo magnitude
-- `TEs::NTuple{NT > 1, Real}`: echo times
+- `TEs::AbstractVector{<:Real}`: echo times
 - `mask::Union{Nothing, AbstractArray{Bool}} = nothing`: binary mask of region of interest
 
 ### Returns
@@ -302,9 +308,11 @@ Numerical Algorithm for Real-time T2* mapping (NumART2*) [1].
 """
 function r2star_numart2s(
     mag::AbstractArray{T, N},
-    TEs::NTuple{NT, Real},
+    TEs::AbstractVector{<:Real},
     mask::Union{Nothing, AbstractArray{Bool}} = nothing
-) where {T<:AbstractFloat, N, NT}
+) where {T<:AbstractFloat, N}
+    NT = length(TEs)
+
     N > 1 || throw(ArgumentError("array must contain echoes in last dimension"))
     NT > 1 || throw(ArgumentError("data must be multi-echo"))
 

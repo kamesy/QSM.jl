@@ -6,7 +6,7 @@
     fit_echo_linear(
         phas::AbstractArray{<:AbstractFloat, N > 1},
         W::AbstractArray{<:AbstractFloat, N > 1},
-        TEs::NTuple{NT > 1, Real};
+        TEs::AbstractVector{<:Real};
         phase_offset::Bool = true
     ) -> Tuple{typeof(similar(phas)){N-1}, [typeof(similar(phas)){N-1}]}
 
@@ -15,7 +15,7 @@ Weighted least squares for multi-echo data.
 ### Arguments
 - `phas::AbstractArray{<:AbstractFloat, N > 1}`: unwrapped multi-echo phase
 - `W::AbstractArray{<:AbstractFloat, N > 1}`: reciprocal of error variance of voxel
-- `TEs::NTuple{NT > 1, Real}`: echo times
+- `TEs::AbstractVector{<:Real}`: echo times
 
 ### Keywords
 - `phase_offset::Bool = true`: model phase offset (`true`)
@@ -28,9 +28,11 @@ Weighted least squares for multi-echo data.
 function fit_echo_linear(
     phas::AbstractArray{<:AbstractFloat, N},
     W::AbstractArray{<:AbstractFloat, N},
-    TEs::NTuple{NT, Real};
+    TEs::AbstractVector{<:Real};
     phase_offset::Bool = true
-) where {N, NT}
+) where {N}
+    NT = length(TEs)
+
     N > 1 || throw(ArgumentError("array must contain echoes in last dimension"))
     NT > 1 || throw(ArgumentError("data must be multi-echo"))
 
@@ -48,7 +50,7 @@ end
         p::AbstractArray{<:AbstractFloat, N},
         phas::AbstractArray{<:AbstractFloat, M > 1},
         W::AbstractArray{<:AbstractFloat, M > 1},
-        TEs::NTuple{NT > 1, Real}
+        TEs::AbstractVector{<:Real}
     ) -> p
 
 Weighted least squares for multi-echo data (phase offset = 0).
@@ -57,7 +59,7 @@ Weighted least squares for multi-echo data (phase offset = 0).
 - `p::AbstractArray{<:AbstractFloat, N}`: weighted least-squares estimate for phase
 - `phas::AbstractArray{<:AbstractFloat, M > 1}`: unwrapped multi-echo phase
 - `W::AbstractArray{<:AbstractFloat, M > 1}`: reciprocal of error variance of voxel
-- `TEs::NTuple{NT > 1, Real}`: echo times
+- `TEs::AbstractVector{<:Real}`: echo times
 
 ### Returns
 - `p`: weighted least-squares estimate for phase
@@ -66,8 +68,10 @@ function fit_echo_linear!(
     p::AbstractArray{Tp, N},
     phas::AbstractArray{Tphas, M},
     W::AbstractArray{TW, M},
-    TEs::NTuple{NT, Real}
-) where {Tp<:AbstractFloat, Tphas<:AbstractFloat, TW<:Real, N, M, NT}
+    TEs::AbstractVector{<:Real}
+) where {Tp<:AbstractFloat, Tphas<:AbstractFloat, TW<:Real, N, M}
+    NT = length(TEs)
+
     M > 1 || throw(ArgumentError("array must contain echoes in last dimension"))
     NT > 1 || throw(ArgumentError("data must be multi-echo"))
 
@@ -105,7 +109,7 @@ end
         p0::AbstractArray{<:AbstractFloat, N},
         phas::AbstractArray{<:AbstractFloat, M > 1},
         W::AbstractArray{<:AbstractFloat, M > 1},
-        TEs::NTuple{NT > 1, Real}
+        TEs::AbstractVector{<:Real}
     ) -> (p, p0)
 
 Weighted least squares for multi-echo data (estimate phase offset).
@@ -115,7 +119,7 @@ Weighted least squares for multi-echo data (estimate phase offset).
 - `p0::AbstractArray{<:AbstractFloat, N}`: weighted least-squares estimate for phase offset
 - `phas::AbstractArray{<:AbstractFloat, M > 1}`: unwrapped multi-echo phase
 - `W::AbstractArray{<:AbstractFloat, M > 1}`: reciprocal of error variance of voxel
-- `TEs::NTuple{NT > 1, Real}`: echo times
+- `TEs::AbstractVector{<:Real}`: echo times
 
 ### Returns
 - `p`: weighted least-squares estimate for phase
@@ -126,8 +130,10 @@ function fit_echo_linear!(
     p0::AbstractArray{Tp0, N},
     phas::AbstractArray{Tphas, M},
     W::AbstractArray{TW, M},
-    TEs::NTuple{NT, Real}
-) where {Tp<:AbstractFloat, Tp0<:AbstractFloat, Tphas<:AbstractFloat, TW<:Real, N, M, NT}
+    TEs::AbstractVector{<:Real}
+) where {Tp<:AbstractFloat, Tp0<:AbstractFloat, Tphas<:AbstractFloat, TW<:Real, N, M}
+    NT = length(TEs)
+
     M > 1 || throw(ArgumentError("array must contain echoes in last dimension"))
     NT > 1 || throw(ArgumentError("data must be multi-echo"))
 
