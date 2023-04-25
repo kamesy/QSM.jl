@@ -84,7 +84,7 @@ algebraically equivalent to applying MINRES to the normal equations
 - `atol::Real = 1e-6`: stopping tolerance
 - `btol::Real = 1e-6`: stopping tolerance
 - `conlim::Real = 1e8`: stopping tolerance
-- `maxit::Int = 1 + min(size(A, 1), size(A, 2))`: maximum number of iterations
+- `maxit::Int = 1 + min(20, size(A)...)`: maximum number of iterations
 - `verbose::Bool = false`: print convergence information
 
 ### Returns
@@ -122,14 +122,14 @@ lsmr!(x, A, b; kwargs...) = lsmr!(LSMRWorkspace(x, A, b); kwargs...)
 
 
 function lsmr!(
-    L::LSMRWorkspace;
+    L::LSMRWorkspace{TA};
     atol::Real = 1e-6,
     btol::Real = 1e-6,
     conlim::Real = 1e8,
-    maxit::Int = 1 + min(size(L.A, 1), size(L.A, 2)),
+    maxit::Int = 1 + min(20, size(L.A)...),
     lambda::Real = 0,
     verbose::Bool = false
-)
+) where {TA}
     A, x, b = L.A, L.x, L.b
     v, h, hbar, Av, Atu = L.v, L.h, L.hbar, L.Av, L.Atu
 
@@ -142,14 +142,23 @@ function lsmr!(
     u = b
     β = norm(u)
 
-    if !iszero(β)
+    if β > 0
         u = _scal!(inv(β), u)
     end
 
     mul!(v, At, u)
     α = norm(v)
 
-    if !iszero(α)
+    # Early exit if b = 0 or A'b = 0.
+    normAr = α * β
+    if normAr == 0
+        if verbose
+            @printf("The exact solution is x = 0")
+        end
+        return x
+    end
+
+    if α > 0
         v = _scal!(inv(α), v)
     end
 
@@ -191,15 +200,6 @@ function lsmr!(
     ϵb = convert(Tr, btol)
     ϵc = conlim > 0 ? convert(Tr, inv(conlim)) : zero(Tr)
 
-    # Exit if b = 0 or A'b = 0.
-    normAr = α * β
-    if iszero(normAr)
-        if verbose
-            @printf("The exact solution is x = 0")
-        end
-        return x
-    end
-
     if verbose
         @printf("\nLSMR            Least-squares solution of  Ax = b\n")
         @printf("The matrix A has %d rows and %d cols\n", size(A, 1), size(A, 2))
@@ -220,7 +220,7 @@ function lsmr!(
         mul!(Av, A, v)
         u, β = _xpby_norm!(Av, -α, u)
 
-        if !iszero(β)
+        if β > 0
             u = _scal!(inv(β), u)
 
             # v = A'*u - β*v
@@ -228,7 +228,7 @@ function lsmr!(
             mul!(Atu, At, u)
             v, α = _xpby_norm!(Atu, -β, v)
 
-            if !iszero(α)
+            if α > 0
                 v = _scal!(inv(α), v)
             end
         end
