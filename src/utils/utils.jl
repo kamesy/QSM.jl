@@ -5,6 +5,7 @@ include("lsmr.jl")
 include("multi_echo.jl")
 include("poisson_solver/poisson_solver.jl")
 include("r2star.jl")
+include("swi.jl")
 
 
 #####

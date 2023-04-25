@@ -5,6 +5,7 @@ using Base: @propagate_inbounds, require_one_based_indexing
 using Base.Threads: nthreads
 
 using CPUSummary: num_cores
+using DSP: Windows
 using FastPow: @fastpow
 using IrrationalConstants: inv2π, twoπ
 using LinearMaps: LinearMap
@@ -26,6 +27,7 @@ using Polyester
 export bet
 export gradfp, gradfp!, gradfp_adj, gradfp_adj!, lap, lap!
 export dipole_kernel, laplace_kernel, smv_kernel
+export homodyne, homodyne!, makewindow
 export multi_echo_average, multi_echo_average!
 export multi_echo_linear_fit, multi_echo_linear_fit!
 export r2star_arlo, r2star_crsi, r2star_ll, r2star_numart2s

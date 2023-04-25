@@ -61,6 +61,13 @@ multi_echo_linear_fit!
 ```
 
 ## Other
+### SWI
+```@docs
+homodyne
+homodyne!
+makewindow
+```
+
 ### R2* mapping
 ```@docs
 r2star_arlo
