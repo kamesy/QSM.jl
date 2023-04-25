@@ -33,7 +33,7 @@ function Poisson2(
     R27 = vec(collect(TileIterator(ax, tsz)))
 
     i = 0
-    RI = Vector{typeof(first(eachindex(interior)))}(undef, sum(interior))
+    RI = Vector{eltype(eachindex(interior))}(undef, sum(interior))
     @inbounds for I in eachindex(interior)
         if interior[I]
             RI[i += 1] = I
