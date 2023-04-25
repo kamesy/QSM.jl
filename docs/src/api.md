@@ -54,8 +54,10 @@ smv_kernel
 
 ## Multi-echo
 ```@docs
-fit_echo_linear
-fit_echo_linear!
+multi_echo_average
+multi_echo_average!
+multi_echo_linear_fit
+multi_echo_linear_fit!
 ```
 
 ## Other

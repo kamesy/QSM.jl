@@ -1,7 +1,7 @@
 module QSM
 
 
-using Base: @propagate_inbounds
+using Base: @propagate_inbounds, require_one_based_indexing
 using Base.Threads: nthreads
 
 using CPUSummary: num_cores
@@ -26,7 +26,8 @@ using Polyester
 export bet
 export gradfp, gradfp!, gradfp_adj, gradfp_adj!, lap, lap!
 export dipole_kernel, laplace_kernel, smv_kernel
-export fit_echo_linear, fit_echo_linear!
+export multi_echo_average, multi_echo_average!
+export multi_echo_linear_fit, multi_echo_linear_fit!
 export r2star_arlo, r2star_crsi, r2star_ll, r2star_numart2s
 export crop_mask, crop_indices, erode_mask, erode_mask!
 export fastfftsize, padfastfft, padarray!, unpadarray, unpadarray!, psf2otf
