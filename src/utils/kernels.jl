@@ -186,7 +186,7 @@ function _dipole_kernel!(
             end
         end
         # set DC term (k̂⋅k̂ := 0)
-        D[1] = 0
+        D[CartesianIndex(shift ? (sz .>> 1 .+ 1) : (1, 1, 1))] = 0
 
     elseif method == :i
         dsz = map(n -> iseven(n) ? n-1 : n, sz)
@@ -220,7 +220,7 @@ function _dipole_kernel!(
             end
         end
         # Lorentz sphere correction
-        D[1] = 0
+        D[CartesianIndex(shift ? (1, 1, 1) : (size(D) .>> 1 .+ 1))] = 0
     end
 
     return D
