@@ -9,6 +9,10 @@ end
     include("poisson_solver/poisson_solver.jl")
 end
 
+@testset "Multi-echo" begin
+    include("multi_echo.jl")
+end
+
 @testset "padfastfft and psf2otf" for T in (Float32, Float64)
     Random.seed!(501)
     for sz in [(8, 9, 10), (11, 12, 13)]
