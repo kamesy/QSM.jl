@@ -227,6 +227,12 @@ function _kdiv_ikernel!(
     reg::Union{Nothing, Symbol},
     method::Symbol
 ) where {T, N}
+    zeroT = zero(T)
+
+    if iszero(lambda)
+        @bfor D[I] = ifelse(iszero(D[I]), zeroT, inv(D[I]))
+        return D
+    end
 
     if method == :tkd
         δ = convert(T, lambda)
@@ -236,29 +242,32 @@ function _kdiv_ikernel!(
 
     elseif method == :tsvd
         δ = convert(T, lambda)
-        zeroT = zero(T)
 
         @bfor D[I] = ifelse(abs(D[I]) ≤ δ, zeroT, inv(D[I]))
 
     elseif method == :tikh
         λ = convert(T, lambda)
-        zeroT = zero(T)
-
-        Γ = similar(D)
 
         if reg == :identity
-            Γ = tfill!(Γ, 1)
+            @bfor D[I] = inv(D[I]*D[I] + λ)*D[I]
 
-        elseif reg == :gradient
-            Γ = _laplace_kernel!(Γ, F, f, vsz, P, negative=true)
+        else
+            Γ = similar(D)
 
-        elseif reg == :laplacian
-            Γ = _laplace_kernel!(Γ, F, f, vsz, P)
-            Γ = tmap!(abs2, Γ)
+            if reg == :gradient
+                Γ = _laplace_kernel!(Γ, F, f, vsz, P, negative=true)
+
+            elseif reg == :laplacian
+                Γ = _laplace_kernel!(Γ, F, f, vsz, P)
+                Γ = tmap!(abs2, Γ)
+            end
+
+            @bfor begin
+                num  = D[I]
+                den  = D[I]*D[I] + λ*Γ[I]
+                D[I] = ifelse(iszero(den), zeroT, inv(den)*num)
+            end
         end
-
-        @bfor D[I] = ifelse(iszero(D[I]) && iszero(Γ[I]), zeroT, inv(D[I]*D[I] + λ*Γ[I])*D[I])
-
     end
 
     return D
