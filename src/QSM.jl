@@ -29,6 +29,7 @@ export dipole_kernel, laplace_kernel, smv_kernel
 export multi_echo_average, multi_echo_average!
 export multi_echo_linear_fit, multi_echo_linear_fit!
 export r2star_arlo, r2star_crsi, r2star_ll, r2star_numart2s
+export r2star_arlo!, r2star_crsi!, r2star_ll!, r2star_numart2s!
 export crop_mask, crop_indices, erode_mask, erode_mask!
 export fastfftsize, padfastfft, padarray!, unpadarray, unpadarray!, psf2otf
 include("utils/utils.jl")

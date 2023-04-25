@@ -1,8 +1,8 @@
 """
-    function r2star_ll(
+    r2star_ll(
         mag::AbstractArray{<:AbstractFloat, N > 1},
         TEs::AbstractVector{<:Real},
-        mask::Union{Nothing, AbstractArray{Bool}} = nothing
+        mask::Union{Nothing, AbstractArray{Bool, N-1}} = nothing
     ) -> typeof(similar(mag, size(mag)[1:N-1]))
 
 Log-linear fit.
@@ -10,61 +10,104 @@ Log-linear fit.
 ### Arguments
 - `mag::AbstractArray{<:AbstractFloat, N > 1}`: multi-echo magnitude
 - `TEs::AbstractVector{<:Real}`: echo times
-- `mask::Union{Nothing, AbstractArray{Bool}} = nothing`: binary mask of region of interest
+- `mask::Union{Nothing, AbstractArray{Bool, N-1}} = nothing`:
+    binary mask of region of interest
 
 ### Returns
 - `typeof(similar(mag, size(mag)[1:N-1]))`: R2* map (1 / units of TEs)
 """
 function r2star_ll(
-    mag::AbstractArray{T, N},
+    mag::AbstractArray{<:AbstractFloat, M},
     TEs::AbstractVector{<:Real},
     mask::Union{Nothing, AbstractArray{Bool}} = nothing
-) where {T<:AbstractFloat, N}
+) where {M}
     NT = length(TEs)
 
-    N > 1 || throw(ArgumentError("array must contain echoes in last dimension"))
+    M > 1 || throw(ArgumentError("array must contain echoes in last dimension"))
     NT > 1 || throw(ArgumentError("data must be multi-echo"))
 
-    checkshape((NT,), (size(mag, N),), (:TEs, :mag))
-    mask !== nothing && checkshape(axes(mask), axes(mag)[1:N-1], (:mask, :mag))
+    r2s = tfill!(similar(mag, size(mag)[1:M-1]), 0)
+    return r2star_ll!(r2s, mag, TEs, mask)
+end
 
-    r2s = similar(mag, size(mag)[1:N-1])
-    r2s = tfill!(r2s, zero(T))
+"""
+    r2star_ll!(
+        r2s::AbstractArray{<:AbstractFloat, N-1},
+        mag::AbstractArray{<:AbstractFloat, N > 1},
+        TEs::AbstractVector{<:Real},
+        mask::Union{Nothing, AbstractArray{Bool, N-1}} = nothing
+    ) -> r2s
 
-    vmag = reshape(mag, :, NT)
-    vr2s = vec(r2s)
+Log-linear fit.
 
-    A = qr(Matrix{T}([-[TEs...] ones(NT)]))
+### Arguments
+- `r2s::AbstractArray{<:AbstractFloat, N-1}`: R2* map (1 / units of TEs)
+- `mag::AbstractArray{<:AbstractFloat, N > 1}`: multi-echo magnitude
+- `TEs::AbstractVector{<:Real}`: echo times
+- `mask::Union{Nothing, AbstractArray{Bool, N-1}} = nothing`:
+    binary mask of region of interest
 
-    if mask === nothing
-        b = tmap(log, transpose(vmag))
-        x̂ = ldiv!(A, b)
-        @batch for I in eachindex(vr2s)
-            vr2s[I] = x̂[1,I]
+### Returns
+- `r2s`: R2* map (1 / units of TEs)
+"""
+function r2star_ll!(
+    r2s::AbstractArray{<:AbstractFloat, N},
+    mag::AbstractArray{T, M},
+    TEs::AbstractVector{<:Real},
+    mask::Union{Nothing, AbstractArray{Bool}} = nothing
+) where {T<:AbstractFloat, N, M}
+    require_one_based_indexing(r2s, mag, TEs)
+    mask !== nothing && require_one_based_indexing(mask)
+
+    NT = length(TEs)
+
+    M > 1 || throw(ArgumentError("array must contain echoes in last dimension"))
+    NT > 1 || throw(ArgumentError("data must be multi-echo"))
+
+    checkshape(axes(r2s), axes(mag)[1:M-1], (:r2s, :mag))
+    checkshape((NT,), (size(mag, M),), (:TEs, :mag))
+    mask !== nothing && checkshape(axes(mask), axes(mag)[1:M-1], (:mask, :mag))
+
+    iNT = inv(NT)
+
+    X = -TEs
+    Y = reshape(mag, :, NT)
+
+    x̄ = sum(X) * iNT
+    xx̄ = collect(X .- x̄)
+    s2x = sum(abs2, xx̄)
+
+    if iszero(s2x)
+        @batch for I in eachindex(r2s)
+            if mask === nothing || mask[I]
+                r2s[I] = 0
+            end
         end
 
     else
-        i = 0
-        R = Vector{Int}(undef, sum(mask))
-        @inbounds for I in eachindex(mask)
-            if mask[I]
-                R[i += 1] = I
+        xx̄ ./= s2x
+
+        @batch per=thread threadlocal=zeros(T, NT)::Vector{T} for I in eachindex(r2s)
+            if mask === nothing || mask[I]
+                logy = threadlocal
+
+                ly = log(Y[I,1])
+                ȳ = ly
+                logy[1] = ly
+                for t in 2:NT
+                    ly = log(Y[I,t])
+                    ȳ += ly
+                    logy[t] = ly
+                end
+                ȳ *= iNT
+
+                sxy = xx̄[1] * (logy[1] - ȳ)
+                for t in 2:NT
+                    sxy = muladd(xx̄[t], (logy[t] - ȳ), sxy)
+                end
+
+                r2s[I] = sxy
             end
-        end
-
-        b = similar(mag, (NT, length(R)))
-        for t in 1:NT
-            bt = @view(b[t,:])
-            mt = @view(vmag[:,t])
-            @batch for I in eachindex(R)
-                bt[I] = log(mt[R[I]])
-            end
-        end
-
-        x̂ = ldiv!(A, b)
-
-        @batch for I in eachindex(R)
-            vr2s[R[I]] = x̂[1,I]
         end
     end
 
@@ -73,10 +116,10 @@ end
 
 
 """
-    function r2star_arlo(
+    r2star_arlo(
         mag::AbstractArray{<:AbstractFloat, N > 1},
         TEs::AbstractVector{<:Real},
-        mask::Union{Nothing, AbstractArray{Bool}} = nothing
+        mask::Union{Nothing, AbstractArray{Bool, N-1}} = nothing
     ) -> typeof(similar(mag, size(mag)[1:N-1]))
 
 Auto-Regression on Linear Operations (ARLO) [1].
@@ -84,7 +127,8 @@ Auto-Regression on Linear Operations (ARLO) [1].
 ### Arguments
 - `mag::AbstractArray{<:AbstractFloat, N > 1}`: multi-echo magnitude
 - `TEs::AbstractVector{<:Real}`: echo times
-- `mask::Union{Nothing, AbstractArray{Bool}} = nothing`: binary mask of region of interest
+- `mask::Union{Nothing, AbstractArray{Bool, N-1}} = nothing`:
+    binary mask of region of interest
 
 ### Returns
 - `typeof(similar(mag, size(mag)[1:N-1]))`: R2* map (1 / units of TEs)
@@ -96,42 +140,78 @@ Auto-Regression on Linear Operations (ARLO) [1].
     Magnetic resonance in medicine. 2015 Feb;73(2):843-50.
 """
 function r2star_arlo(
-    mag::AbstractArray{T, N},
+    mag::AbstractArray{<:AbstractFloat, M},
     TEs::AbstractVector{<:Real},
     mask::Union{Nothing, AbstractArray{Bool}} = nothing
-) where {T<:AbstractFloat, N}
+) where {M}
     NT = length(TEs)
 
-    N > 1 || throw(ArgumentError("array must contain echoes in last dimension"))
+    M > 1 || throw(ArgumentError("array must contain echoes in last dimension"))
     NT > 2 || throw(ArgumentError("ARLO requires at least 3 echoes"))
 
-    checkshape((NT,), (size(mag, N),), (:TEs, :mag))
-    mask !== nothing && checkshape(axes(mask), axes(mag)[1:N-1], (:mask, :mag))
+    r2s = tfill!(similar(mag, size(mag)[1:M-1]), 0)
+    return r2star_arlo!(r2s, mag, TEs, mask)
+end
 
-    all((≈)(TEs[2]-TEs[1]), TEs[2:end].-TEs[1:end-1]) ||
+"""
+    r2star_arlo!(
+        r2s::AbstractArray{<:AbstractFloat, N-1},
+        mag::AbstractArray{<:AbstractFloat, N > 1},
+        TEs::AbstractVector{<:Real},
+        mask::Union{Nothing, AbstractArray{Bool, N-1}} = nothing
+    ) -> r2s
+
+Auto-Regression on Linear Operations (ARLO) [1].
+
+### Arguments
+- `r2s::AbstractArray{<:AbstractFloat, N-1}`: R2* map (1 / units of TEs)
+- `mag::AbstractArray{<:AbstractFloat, N > 1}`: multi-echo magnitude
+- `TEs::AbstractVector{<:Real}`: echo times
+- `mask::Union{Nothing, AbstractArray{Bool, N-1}} = nothing`:
+    binary mask of region of interest
+
+### Returns
+- `r2s`: R2* map (1 / units of TEs)
+
+### References
+[1] Pei M, Nguyen TD, Thimmappa ND, Salustri C, Dong F, Cooper MA, Li J,
+    Prince MR, Wang Y. Algorithm for fast monoexponential fitting based on
+    auto‐regression on linear operations (ARLO) of data.
+    Magnetic resonance in medicine. 2015 Feb;73(2):843-50.
+"""
+function r2star_arlo!(
+    r2s::AbstractArray{<:AbstractFloat, N},
+    mag::AbstractArray{<:AbstractFloat, M},
+    TEs::AbstractVector{<:Real},
+    mask::Union{Nothing, AbstractArray{Bool}} = nothing
+) where {N, M}
+    require_one_based_indexing(r2s, mag, TEs)
+    mask !== nothing && require_one_based_indexing(mask)
+
+    NT = length(TEs)
+
+    M > 1 || throw(ArgumentError("array must contain echoes in last dimension"))
+    NT > 2 || throw(ArgumentError("ARLO requires at least 3 echoes"))
+
+    checkshape(axes(r2s), axes(mag)[1:M-1], (:r2s, :mag))
+    checkshape((NT,), (size(mag, M),), (:TEs, :mag))
+    mask !== nothing && checkshape(axes(mask), axes(mag)[1:M-1], (:mask, :mag))
+
+    length(unique!(diff(TEs))) == 1 ||
         throw(DomainError("ARLO requires equidistant echoes"))
 
-    r2s = similar(mag, size(mag)[1:N-1])
-    r2s = tfill!(r2s, zero(T))
+    zeroT = zero(eltype(r2s))
+    α = convert(eltype(mag), 3 / (TEs[2]-TEs[1]))
 
-    vmag = reshape(mag, :, NT)
-    vr2s = vec(r2s)
+    P = reshape(mag, :, NT)
 
-    zeroT = zero(T)
-    twoT  = convert(T, 2)
-    fourT = convert(T, 4)
-
-    α = convert(T, 3 / (TEs[2]-TEs[1]))
-
-    @batch for I in eachindex(vr2s)
+    @batch per=thread for I in eachindex(r2s)
         if mask === nothing || mask[I]
-            m0 = vmag[I,1]
-            m1 = vmag[I,2]
-            m2 = vmag[I,3]
+            m0, m1, m2 = P[I,1], P[I,2], P[I,3]
 
             δ = m0 - m2
-            s = m0 + muladd(fourT, m1, m2)
-            a = muladd(twoT, m1, m0)
+            s = m0 + muladd(4, m1, m2)
+            a = muladd(2, m1, m0)
 
             num = δ * a
             den = s * a
@@ -139,17 +219,17 @@ function r2star_arlo(
             for t in 2:NT-2
                 m0 = m1
                 m1 = m2
-                m2 = vmag[I,t+2]
+                m2 = P[I,t+2]
 
                 δ = m0 - m2
-                s = m0 + muladd(fourT, m1, m2)
-                a = muladd(twoT, m1, m0)
+                s = m0 + muladd(4, m1, m2)
+                a = muladd(2, m1, m0)
 
                 num = muladd(δ, a, num)
                 den = muladd(s, a, den)
             end
 
-            vr2s[I] = iszero(den) ? zeroT : α * num * inv(den)
+            r2s[I] = iszero(den) ? zeroT : α * num / den
         end
     end
 
@@ -158,10 +238,10 @@ end
 
 
 """
-    function r2star_crsi(
+    r2star_crsi(
         mag::AbstractArray{<:AbstractFloat, N > 1},
         TEs::AbstractVector{<:Real},
-        mask::Union{Nothing, AbstractArray{Bool}} = nothing;
+        mask::Union{Nothing, AbstractArray{Bool, N-1}} = nothing;
         M::Integer = 3,
         sigma::Union{Nothing, Real} = nothing,
         Rsz::NTuple{N-1, Integer} = size(mag)[1:N-1] .÷ 20,
@@ -172,7 +252,8 @@ Calculation of Relaxivities by Signal Integration (CRSI) [1].
 ### Arguments
 - `mag::AbstractArray{<:AbstractFloat, N > 1}`: multi-echo magnitude
 - `TEs::AbstractVector{<:Real}`: echo times
-- `mask::Union{Nothing, AbstractArray{Bool}} = nothing`: binary mask of region of interest
+- `mask::Union{Nothing, AbstractArray{Bool, N-1}} = nothing`:
+    binary mask of region of interest
 
 ### Keywords
 - `M::Integer = 3`: interpolation factor
@@ -192,58 +273,108 @@ Calculation of Relaxivities by Signal Integration (CRSI) [1].
     Magnetic resonance in medicine. 2018 Jun;79(6):2978-85.
 """
 function r2star_crsi(
-    mag::AbstractArray{T, N},
+    mag::AbstractArray{<:AbstractFloat, NM},
     TEs::AbstractVector{<:Real},
     mask::Union{Nothing, AbstractArray{Bool}} = nothing;
     M::Integer = 3,
     sigma::Union{Nothing, Real} = nothing,
-    Rsz::NTuple{NR, Integer} = size(mag)[1:N-1] .÷ 20,
-) where {T<:AbstractFloat, N, NR}
+    Rsz::NTuple{NR, Integer} = size(mag)[1:NM-1] .÷ 20,
+) where {NM, NR}
     NT = length(TEs)
 
-    N > 1 || throw(ArgumentError("array must contain echoes in last dimension"))
+    NM > 1 || throw(ArgumentError("array must contain echoes in last dimension"))
     NT > 1 || throw(ArgumentError("data must be multi-echo"))
-    M > 0 || throw(ArgumentError("interpolation factor M must be greater than 0"))
+    M  > 0 || throw(ArgumentError("interpolation factor M must be greater than 0"))
 
-    checkshape((NT,), (size(mag, N),), (:TEs, :mag))
-    mask !== nothing && checkshape(axes(mask), axes(mag)[1:N-1], (:mask, :mag))
-    sigma !== nothing && checkshape((NR,), (N-1,), (:Rsz, :mag))
+    r2s = tfill!(similar(mag, size(mag)[1:NM-1]), 0)
+    return r2star_crsi!(r2s, mag, TEs, mask, M, sigma, Rsz)
+end
 
-    P = tmap(x -> x*x, mag)
-    r2s = similar(mag, size(mag)[1:N-1])
-    r2s = tfill!(r2s, zero(T))
+"""
+    r2star_crsi!(
+        r2s::AbstractArray{<:AbstractFloat, N-1},
+        mag::AbstractArray{<:AbstractFloat, N > 1},
+        TEs::AbstractVector{<:Real},
+        mask::Union{Nothing, AbstractArray{Bool, N-1}} = nothing,
+        M::Integer = 3,
+        sigma::Union{Nothing, Real} = nothing,
+        Rsz::NTuple{N-1, Integer} = size(mag)[1:N-1] .÷ 20,
+    ) -> r2s
 
-    vP = reshape(P, :, NT)
-    vr2s = vec(r2s)
+Calculation of Relaxivities by Signal Integration (CRSI) [1].
 
-    if sigma !== nothing
-        σ2 = convert(T, 2*sigma*sigma)
-    else
-        σ2 = _noise_crsi(P, Rsz, mask)
-    end
+### Arguments
+- `r2s::AbstractArray{<:AbstractFloat, N-1}`: R2* map (1 / units of TEs)
+- `mag::AbstractArray{<:AbstractFloat, N > 1}`: multi-echo magnitude
+- `TEs::AbstractVector{<:Real}`: echo times
+- `mask::Union{Nothing, AbstractArray{Bool, N-1}} = nothing`:
+    binary mask of region of interest
+- `M::Integer = 3`: interpolation factor
+- `sigma::Union{Nothing, Real} = nothing`: noise
+- `Rsz::NTuple{N-1, Integer} = size(mag)[1:N-1] .÷ 20`:
+    - `sigma isa Real`: unused
+    - `sigma isa Nothing`: size of kernels used to calculate the noise from the
+        background signal of the magnitude.
 
-    zeroT = zero(T)
-    α = convert(T, 1//2)
-    β = convert(T, -α * σ2 * (TEs[end] - TEs[1]))
+### Returns
+- `r2s`: R2* map (1 / units of TEs)
 
-    τ  = SVector{NT-1, T}((TEs[2:end] .- TEs[1:end-1]) ./ (M+1))
-    γ0 = SVector{M+1, T}([(2*M - 2*m + 1) / (2*M + 2) for m in 0:M]...)
-    γ1 = SVector{M+1, T}([(2*m + 1) / (2*M + 2) for m in 0:M]...)
+### References
+[1] Song R, Loeffler RB, Holtrop JL, McCarville MB, Hankins JS, Hillenbrand CM.
+    Fast quantitative parameter maps without fitting: Integration yields
+    accurate mono‐exponential signal decay rates.
+    Magnetic resonance in medicine. 2018 Jun;79(6):2978-85.
+"""
+function r2star_crsi!(
+    r2s::AbstractArray{<:AbstractFloat, N},
+    mag::AbstractArray{T, NM},
+    TEs::AbstractVector{<:Real},
+    mask::Union{Nothing, AbstractArray{Bool}} = nothing,
+    M::Integer = 3,
+    sigma::Union{Nothing, Real} = nothing,
+    Rsz::NTuple{NR, Integer} = size(mag)[1:NM-1] .÷ 20,
+) where {T<:AbstractFloat, N, NM, NR}
+    require_one_based_indexing(r2s, mag, TEs)
+    mask !== nothing && require_one_based_indexing(mask)
 
-    @batch for I in eachindex(vr2s)
+    NT = length(TEs)
+
+    NM > 1 || throw(ArgumentError("array must contain echoes in last dimension"))
+    NT > 1 || throw(ArgumentError("data must be multi-echo"))
+    M  > 0 || throw(ArgumentError("interpolation factor M must be greater than 0"))
+
+    checkshape(axes(r2s), axes(mag)[1:NM-1], (:r2s, :mag))
+    checkshape((NT,), (size(mag, NM),), (:TEs, :mag))
+    mask !== nothing && checkshape(axes(mask), axes(mag)[1:NM-1], (:mask, :mag))
+    sigma === nothing && checkshape((NR,), (NM-1,), (:Rsz, :mag))
+
+    zeroT = zero(eltype(r2s))
+
+    τ  = Vector{T}(diff(TEs) ./ (M+1))
+    γ0 = Vector{T}([(2*M - 2*m + 1) / (2*M + 2) for m in 0:M])
+    γ1 = Vector{T}([(2*m + 1) / (2*M + 2) for m in 0:M])
+
+    σ2 = sigma === nothing ? _noise_crsi(mag, Rsz, mask) : (2*sigma*sigma)
+    d0 = convert(T, -σ2 * (TEs[end]-TEs[1]) / 2)
+
+    P = reshape(mag, :, NT)
+
+    @batch per=thread for I in eachindex(r2s)
         if mask === nothing || mask[I]
-            den = β
+            p1  = P[I,1] * P[I,1]
+            num = p1
+            den = d0
             for t in 1:NT-1
-                p0 = vP[I,t]
-                p1 = vP[I,t+1]
-                p = pow(p0, γ0[1]) * pow(p1, γ1[1])
+                p0 = p1
+                p1 = P[I,t+1] * P[I,t+1]
+                p  = pow(p0, γ0[1]) * pow(p1, γ1[1])
                 for m in 2:M+1
                     p = muladd(pow(p0, γ0[m]), pow(p1, γ1[m]), p)
                 end
                 den = muladd(τ[t], p, den)
             end
-
-            vr2s[I] = iszero(den) ? zeroT : α * (vP[I,1] - vP[I,end]) * inv(den)
+            num -= p1
+            r2s[I] = iszero(den) ? zeroT : num / (2*den)
         end
     end
 
@@ -251,14 +382,17 @@ function r2star_crsi(
 end
 
 function _noise_crsi(
-    P::AbstractArray{T, N},
+    mag::AbstractArray{T, N},
     Rsz::NTuple{M, Integer},
     mask::Union{Nothing, AbstractArray{Bool}} = nothing
 ) where {T<:AbstractFloat, N, M}
-    checkshape((M,), (N-1,), (:Rsz, :P))
-    mask !== nothing && checkshape(axes(mask), axes(P)[1:3], (:mask, :P))
+    require_one_based_indexing(mag)
+    mask !== nothing && require_one_based_indexing(mask)
 
-    sz = size(P)[1:M]
+    checkshape((M,), (N-1,), (:Rsz, :mag))
+    mask !== nothing && checkshape(axes(mask), axes(mag)[1:3], (:mask, :mag))
+
+    sz = size(mag)[1:M]
     rsz = map(min, Rsz, (sz.-2).÷2)
 
     outer = ntuple(d -> 2:sz[d]-1, Val(M))
@@ -267,10 +401,11 @@ function _noise_crsi(
     m = Ref(0)
     s = Ref(zero(T))
 
-    for t in axes(P, N)
+    for t in axes(mag, N)
         _edgeloop(outer, inner) do I...
             if all(map(∉, I, inner)) && (mask === nothing || (@inbounds !mask[I...]))
-                s[] += (@inbounds P[I...,t])
+                p = @inbounds mag[I...,t]
+                s[] += p*p
                 m[] += 1
             end
         end
@@ -284,10 +419,10 @@ end
 
 
 """
-    function r2star_numart2s(
+    r2star_numart2s(
         mag::AbstractArray{<:AbstractFloat, N > 1},
         TEs::AbstractVector{<:Real},
-        mask::Union{Nothing, AbstractArray{Bool}} = nothing
+        mask::Union{Nothing, AbstractArray{Bool, N-1}} = nothing
     ) -> typeof(similar(mag, size(mag)[1:N-1]))
 
 Numerical Algorithm for Real-time T2* mapping (NumART2*) [1].
@@ -295,7 +430,8 @@ Numerical Algorithm for Real-time T2* mapping (NumART2*) [1].
 ### Arguments
 - `mag::AbstractArray{<:AbstractFloat, N > 1}`: multi-echo magnitude
 - `TEs::AbstractVector{<:Real}`: echo times
-- `mask::Union{Nothing, AbstractArray{Bool}} = nothing`: binary mask of region of interest
+- `mask::Union{Nothing, AbstractArray{Bool, N-1}} = nothing`:
+    binary mask of region of interest
 
 ### Returns
 - `typeof(similar(mag, size(mag)[1:N-1]))`: R2* map (1 / units of TEs)
@@ -307,35 +443,81 @@ Numerical Algorithm for Real-time T2* mapping (NumART2*) [1].
     Society for Magnetic Resonance in Medicine. 2002 Nov;48(5):877-82.
 """
 function r2star_numart2s(
-    mag::AbstractArray{T, N},
+    mag::AbstractArray{<:AbstractFloat, M},
     TEs::AbstractVector{<:Real},
     mask::Union{Nothing, AbstractArray{Bool}} = nothing
-) where {T<:AbstractFloat, N}
+) where {M}
     NT = length(TEs)
 
-    N > 1 || throw(ArgumentError("array must contain echoes in last dimension"))
+    M > 1 || throw(ArgumentError("array must contain echoes in last dimension"))
     NT > 1 || throw(ArgumentError("data must be multi-echo"))
 
-    checkshape((NT,), (size(mag, N),), (:TEs, :mag))
-    mask !== nothing && checkshape(axes(mask), axes(mag)[1:N-1], (:mask, :mag))
+    r2s = tfill!(similar(mag, size(mag)[1:M-1]), 0)
+    return r2star_numart2s!(r2s, mag, TEs, mask)
+end
 
-    r2s = similar(mag, size(mag)[1:N-1])
-    r2s = tfill!(r2s, zero(T))
+"""
+    r2star_numart2s!(
+        r2s::AbstractArray{<:AbstractFloat, N-1},
+        mag::AbstractArray{<:AbstractFloat, N > 1},
+        TEs::AbstractVector{<:Real},
+        mask::Union{Nothing, AbstractArray{Bool, N-1}} = nothing
+    ) -> r2s
 
-    vmag = reshape(mag, :, NT)
-    vr2s = vec(r2s)
+Numerical Algorithm for Real-time T2* mapping (NumART2*) [1].
 
-    zeroT = zero(T)
-    α = convert(T, 2*(NT - 1) / (TEs[end] - TEs[1]))
+### Arguments
+- `r2s::AbstractArray{<:AbstractFloat, N-1}`: R2* map (1 / units of TEs)
+- `mag::AbstractArray{<:AbstractFloat, N > 1}`: multi-echo magnitude
+- `TEs::AbstractVector{<:Real}`: echo times
+- `mask::Union{Nothing, AbstractArray{Bool, N-1}} = nothing`:
+    binary mask of region of interest
 
-    @batch for I in eachindex(vr2s)
+### Returns
+- `r2s`: R2* map (1 / units of TEs)
+
+### References
+[1] Hagberg GE, Indovina I, Sanes JN, Posse S. Real‐time quantification of T2*
+    changes using multiecho planar imaging and numerical methods.
+    Magnetic Resonance in Medicine: An Official Journal of the International
+    Society for Magnetic Resonance in Medicine. 2002 Nov;48(5):877-82.
+"""
+function r2star_numart2s!(
+    r2s::AbstractArray{<:AbstractFloat, N},
+    mag::AbstractArray{<:AbstractFloat, M},
+    TEs::AbstractVector{<:Real},
+    mask::Union{Nothing, AbstractArray{Bool}} = nothing
+) where {N, M}
+    require_one_based_indexing(r2s, mag, TEs)
+    mask !== nothing && require_one_based_indexing(mask)
+
+    NT = length(TEs)
+
+    M > 1 || throw(ArgumentError("array must contain echoes in last dimension"))
+    NT > 1 || throw(ArgumentError("data must be multi-echo"))
+
+    checkshape(axes(r2s), axes(mag)[1:M-1], (:r2s, :mag))
+    checkshape((NT,), (size(mag, M),), (:TEs, :mag))
+    mask !== nothing && checkshape(axes(mask), axes(mag)[1:M-1], (:mask, :mag))
+
+    zeroT = zero(eltype(r2s))
+    α = convert(eltype(mag), 2*(NT-1) / (TEs[end]-TEs[1]))
+
+    P = reshape(mag, :, NT)
+
+    @batch per=thread for I in eachindex(r2s)
         if mask === nothing || mask[I]
-            den = vmag[I,1]
+            m = P[I,1]
+            β = m
+            γ = m
             for t in 2:NT-1
-                den += vmag[I,t] + vmag[I,t]
+                m = P[I,t]
+                γ += m + m
             end
-            den += vmag[I,NT]
-            vr2s[I] = iszero(den) ? zeroT : α * (vmag[I,1] - vmag[I,NT]) * inv(den)
+            m  = P[I,end]
+            β -= m
+            γ += m
+            r2s[I] = iszero(γ) ? zeroT : α * β / γ
         end
     end
 

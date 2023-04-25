@@ -64,9 +64,13 @@ multi_echo_linear_fit!
 ### R2* mapping
 ```@docs
 r2star_arlo
+r2star_arlo!
 r2star_crsi
+r2star_crsi!
 r2star_ll
+r2star_ll!
 r2star_numart2s
+r2star_numart2s!
 ```
 
 ### Finite differences
