@@ -262,8 +262,8 @@ end
         p::AbstractArray{<:AbstractFloat, N-1},
         phas::AbstractArray{<:AbstractFloat, N > 1},
         TEs::AbstractVector{<:Real},
-        W::Union{Nothing, AbstractArray{<:AbstractFloat, N}} = nothing,
-        mask::Union{Nothing, AbstractArray{Bool, N-1}} = nothing,
+        W::Union{Nothing, AbstractArray{<:AbstractFloat, N}},
+        mask::Union{Nothing, AbstractArray{Bool, N-1}},
     ) -> p
 
 (Weighted) Least squares for multi-echo data (phase offset = 0).
@@ -272,10 +272,10 @@ end
 - `p::AbstractArray{<:AbstractFloat, N-1}`: (weighted) least-squares estimate for phase
 - `phas::AbstractArray{<:AbstractFloat, N > 1}`: unwrapped multi-echo phase
 - `TEs::AbstractVector{<:Real}`: echo times
-- `W::Union{Nothing, AbstractArray{<:AbstractFloat, N}} = nothing`:
+- `W::Union{Nothing, AbstractArray{<:AbstractFloat, N}}`:
     square root of weights, e.g. reciprocal of error variance of voxel
     ~> W² = 1/σ²(phas) = mag²/σ²(mag)
-- `mask::Union{Nothing, AbstractArray{Bool, N-1}} = nothing`:
+- `mask::Union{Nothing, AbstractArray{Bool, N-1}}`:
     binary mask of region of interest
 
 ### Returns
@@ -285,8 +285,8 @@ function multi_echo_linear_fit!(
     p::AbstractArray{<:AbstractFloat, N},
     phas::AbstractArray{<:AbstractFloat, M},
     TEs::AbstractVector{<:Real},
-    W::Union{Nothing, AbstractArray{<:AbstractFloat, M}} = nothing,
-    mask::Union{Nothing, AbstractArray{Bool}} = nothing,
+    W::Union{Nothing, AbstractArray{<:AbstractFloat, M}},
+    mask::Union{Nothing, AbstractArray{Bool}},
 ) where {N, M}
     require_one_based_indexing(p, phas, TEs)
     W !== nothing && require_one_based_indexing(W)
@@ -387,8 +387,8 @@ end
         p0::AbstractArray{<:AbstractFloat, N-1},
         phas::AbstractArray{<:AbstractFloat, N > 1},
         TEs::AbstractVector{<:Real},
-        W::Union{Nothing, AbstractArray{<:AbstractFloat, N}} = nothing,
-        mask::Union{Nothing, AbstractArray{Bool, N-1}} = nothing,
+        W::Union{Nothing, AbstractArray{<:AbstractFloat, N}},
+        mask::Union{Nothing, AbstractArray{Bool, N-1}},
     ) -> (p, p0)
 
 (Weighted) Least squares for multi-echo data (estimate phase offset).
@@ -398,10 +398,10 @@ end
 - `p0::AbstractArray{<:AbstractFloat, N-1}`: (weighted) least-squares estimate for phase offset
 - `phas::AbstractArray{<:AbstractFloat, N > 1}`: unwrapped multi-echo phase
 - `TEs::AbstractVector{<:Real}`: echo times
-- `W::Union{Nothing, AbstractArray{<:AbstractFloat, N}} = nothing`:
+- `W::Union{Nothing, AbstractArray{<:AbstractFloat, N}}`:
     square root of weights, e.g. reciprocal of error variance of voxel
     ~> W² = 1/σ²(phas) = mag²/σ²(mag)
-- `mask::Union{Nothing, AbstractArray{Bool, N-1}} = nothing`:
+- `mask::Union{Nothing, AbstractArray{Bool, N-1}}`:
     binary mask of region of interest
 
 ### Returns
@@ -413,8 +413,8 @@ function multi_echo_linear_fit!(
     p0::AbstractArray{<:AbstractFloat, N},
     phas::AbstractArray{<:AbstractFloat, M},
     TEs::AbstractVector{<:Real},
-    W::Union{Nothing, AbstractArray{<:AbstractFloat, M}} = nothing,
-    mask::Union{Nothing, AbstractArray{Bool}} = nothing,
+    W::Union{Nothing, AbstractArray{<:AbstractFloat, M}},
+    mask::Union{Nothing, AbstractArray{Bool}},
 ) where {N, M}
     require_one_based_indexing(p, p0, phas, TEs)
     W !== nothing && require_one_based_indexing(W)
