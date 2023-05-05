@@ -519,7 +519,7 @@ function _multi_echo_linear_fit!(
             x̄ = wt * x[1]
             ȳ = wt * Y[I,1]
             for t in 2:NT
-                wt = W[t]
+                wt = W[I,t]
                 w += wt
                 x̄ = muladd(wt, x[t], x̄)
                 ȳ = muladd(wt, Y[I,t], ȳ)
