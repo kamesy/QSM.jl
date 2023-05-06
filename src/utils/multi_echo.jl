@@ -514,12 +514,12 @@ function _multi_echo_linear_fit!(
 
     @batch per=thread for I in eachindex(β)
         if mask === nothing || mask[I]
-            wt = W[I,1]
+            wt = W[I,1] * W[I,1]
             w = wt
             x̄ = wt * x[1]
             ȳ = wt * Y[I,1]
             for t in 2:NT
-                wt = W[I,t]
+                wt = W[I,t] * W[I,t]
                 w += wt
                 x̄ = muladd(wt, x[t], x̄)
                 ȳ = muladd(wt, Y[I,t], ȳ)
@@ -534,22 +534,20 @@ function _multi_echo_linear_fit!(
             x̄ /= w
             ȳ /= w
 
-            xx̄ = x[1] - x̄
-            yȳ = Y[I,1] - ȳ
+            wt = W[I,1]
+            xx̄ = wt*(x[1] - x̄)
+            yȳ = wt*(Y[I,1] - ȳ)
 
-            wxx̄ = W[I,1] * xx̄
-
-            sxy = wxx̄ * yȳ
-            s2x = wxx̄ * xx̄
+            sxy = xx̄ * yȳ
+            s2x = xx̄ * xx̄
 
             for t in 2:NT
-                xx̄ = x[t] - x̄
-                yȳ = Y[I,t] - ȳ
+                wt = W[I,t]
+                xx̄ = wt*(x[t] - x̄)
+                yȳ = wt*(Y[I,t] - ȳ)
 
-                wxx̄ = W[I,t] * xx̄
-
-                sxy = muladd(wxx̄, yȳ, sxy)
-                s2x = muladd(wxx̄, xx̄, s2x)
+                sxy = muladd(xx̄, yȳ, sxy)
+                s2x = muladd(xx̄, xx̄, s2x)
             end
 
             β[I] = iszero(s2x) ? zeroβ : sxy / s2x
