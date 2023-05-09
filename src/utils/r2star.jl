@@ -197,7 +197,7 @@ function r2star_arlo!(
     checkshape((NT,), (size(mag, M),), (:TEs, :mag))
     mask !== nothing && checkshape(axes(mask), axes(mag)[1:M-1], (:mask, :mag))
 
-    length(unique!(diff(TEs))) == 1 ||
+    all(≈(TEs[2]-TEs[1]), diff(TEs)) ||
         throw(DomainError("ARLO requires equidistant echoes"))
 
     zeroT = zero(eltype(r2s))
