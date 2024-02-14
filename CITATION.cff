@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+title: Quantitative Susceptibility Mapping Toolbox
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Christian
+    name-suffix: Kames
+    email: ckames@physics.ubc.ca
+identifiers:
+  - type: url
+    value: 'https://github.com/kamesy/QSM.jl'
+    description: >-
+      Julia toolbox for quantitative susceptibility mapping
+      (QSM).
+repository-code: 'https://github.com/kamesy/QSM.jl'
+url: 'https://kamesy.github.io/QSM.jl'
+keywords:
+  - QSM
+  - MRI
+license: MIT
